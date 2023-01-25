@@ -1,3 +1,6 @@
+#ifndef headerfilepool
+#define headerfilepool
+
 #include "consts.h"
 #include "global.h"
 #include "types.h"
@@ -550,3 +553,5 @@ public:
         // emit Collect(msg.sender, recipient, tickLower, tickUpper, amount0, amount1);
     }
 };
+
+#endif
