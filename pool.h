@@ -36,11 +36,11 @@ public:
     /// @inheritdoc IUniswapV3PoolState
     uint128 liquidity;
     /// @inheritdoc IUniswapV3PoolState
-    uint256 feeGrowthGlobal0X128;
+    // uint256 feeGrowthGlobal0X128;
     /// @inheritdoc IUniswapV3PoolState
-    uint256 feeGrowthGlobal1X128;
+    // uint256 feeGrowthGlobal1X128;
     /// @inheritdoc IUniswapV3PoolState
-    Observations observations;
+    // Observations observations;
     /// @inheritdoc IUniswapV3PoolState
     Ticks ticks;
     /// @inheritdoc IUniswapV3PoolState
@@ -57,7 +57,8 @@ public:
     uint256 balance0, balance1;
     Pool(address factory, address token0, address token1, uint24 fee, int24 tickSpacing, uint128 maxLiquidityPerTick)
         : factory(factory), token0(token0), token1(token1), fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
-        feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = liquidity = 0;
+        // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = 
+        liquidity = 0;
     }
     friend std::istream& operator>>(std::istream& is, Pool& pool) {
         is >> pool.fee >> pool.tickSpacing >> pool.liquidity >> pool.slot0 >> pool.ticks >> pool.tickBitmap;
@@ -100,11 +101,11 @@ public:
 
         int24 tick = getTickAtSqrtRatio(sqrtPriceX96);
 
-        uint16 cardinality, cardinalityNext;
-        std::tie(cardinality, cardinalityNext) = observations.initialize(_blockTimestamp());
+        // uint16 cardinality, cardinalityNext;
+        // std::tie(cardinality, cardinalityNext) = observations.initialize(_blockTimestamp());
 
         // slot0 = Slot0(sqrtPriceX96, tick, 0, cardinality, cardinalityNext, 0, true);
-        slot0 = Slot0(sqrtPriceX96, tick, 0, cardinality, cardinalityNext, 0);
+        slot0 = Slot0(sqrtPriceX96, tick, 0);
     
         return tick;
         // emit Initialize(sqrtPriceX96, tick);
@@ -147,7 +148,7 @@ public:
             0,
             slot0Start.sqrtPriceX96,
             slot0Start.tick,
-            zeroForOne ? feeGrowthGlobal0X128 : feeGrowthGlobal1X128,
+            // zeroForOne ? feeGrowthGlobal0X128 : feeGrowthGlobal1X128,
             0,
             cache.liquidityStart
         );
@@ -222,21 +223,21 @@ public:
                 if (step.initialized) {
                     // check for the placeholder value, which we replace with the actual value the first time the swap
                     // crosses an initialized tick
-                    if (!cache.computedLatestObservation) {
-                        std::tie(cache.tickCumulative, cache.secondsPerLiquidityCumulativeX128) = observations.observeSingle(
-                            cache.blockTimestamp,
-                            0,
-                            slot0Start.tick,
-                            slot0Start.observationIndex,
-                            cache.liquidityStart,
-                            slot0Start.observationCardinality
-                        );
-                        cache.computedLatestObservation = true;
-                    }
+                    // if (!cache.computedLatestObservation) {
+                    //     std::tie(cache.tickCumulative, cache.secondsPerLiquidityCumulativeX128) = observations.observeSingle(
+                    //         cache.blockTimestamp,
+                    //         0,
+                    //         slot0Start.tick,
+                    //         slot0Start.observationIndex,
+                    //         cache.liquidityStart,
+                    //         slot0Start.observationCardinality
+                    //     );
+                    //     cache.computedLatestObservation = true;
+                    // }
                     int128 liquidityNet = ticks.cross(
                         step.tickNext,
-                        (zeroForOne ? state.feeGrowthGlobalX128 : feeGrowthGlobal0X128),
-                        (zeroForOne ? feeGrowthGlobal1X128 : state.feeGrowthGlobalX128),
+                        // (zeroForOne ? state.feeGrowthGlobalX128 : feeGrowthGlobal0X128),
+                        // (zeroForOne ? feeGrowthGlobal1X128 : state.feeGrowthGlobalX128),
                         cache.secondsPerLiquidityCumulativeX128,
                         cache.tickCumulative,
                         cache.blockTimestamp
@@ -263,19 +264,19 @@ public:
 
         // update tick and write an oracle entry if the tick change
         if (state.tick != slot0Start.tick) {
-            uint16 observationIndex, observationCardinality;
-            std::tie(observationIndex, observationCardinality) = observations.write(
-                slot0Start.observationIndex,
-                cache.blockTimestamp,
-                slot0Start.tick,
-                cache.liquidityStart,
-                slot0Start.observationCardinality,
-                slot0Start.observationCardinalityNext
-            );
+            // uint16 observationIndex, observationCardinality;
+            // std::tie(observationIndex, observationCardinality) = observations.write(
+            //     slot0Start.observationIndex,
+            //     cache.blockTimestamp,
+            //     slot0Start.tick,
+            //     cache.liquidityStart,
+            //     slot0Start.observationCardinality,
+            //     slot0Start.observationCardinalityNext
+            // );
             slot0.sqrtPriceX96 = state.sqrtPriceX96;
             slot0.tick = state.tick;
-            slot0.observationIndex = observationIndex;
-            slot0.observationCardinality = observationCardinality;
+            // slot0.observationIndex = observationIndex;
+            // slot0.observationCardinality = observationCardinality;
         } else {
             // otherwise just update the price
             slot0.sqrtPriceX96 = state.sqrtPriceX96;
@@ -288,10 +289,10 @@ public:
         // update fee growth global and, if necessary, protocol fees
         // overflow is acceptable, protocol has to withdraw before it hits type(uint128).max fees
         if (zeroForOne) {
-            feeGrowthGlobal0X128 = state.feeGrowthGlobalX128;
+            // feeGrowthGlobal0X128 = state.feeGrowthGlobalX128;
             if (state.protocolFee > 0) protocolFees.token0 += state.protocolFee;
         } else {
-            feeGrowthGlobal1X128 = state.feeGrowthGlobalX128;
+            // feeGrowthGlobal1X128 = state.feeGrowthGlobalX128;
             if (state.protocolFee > 0) protocolFees.token1 += state.protocolFee;
         }
 
@@ -366,14 +367,14 @@ public:
                 uint128 liquidityBefore = liquidity; // SLOAD for gas optimization
 
                 // write an oracle entry
-                std::tie(slot0.observationIndex, slot0.observationCardinality) = observations.write(
-                    _slot0.observationIndex,
-                    _blockTimestamp(),
-                    _slot0.tick,
-                    liquidityBefore,
-                    _slot0.observationCardinality,
-                    _slot0.observationCardinalityNext
-                );
+                // std::tie(slot0.observationIndex, slot0.observationCardinality) = observations.write(
+                //     _slot0.observationIndex,
+                //     _blockTimestamp(),
+                //     _slot0.tick,
+                //     liquidityBefore,
+                //     _slot0.observationCardinality,
+                //     _slot0.observationCardinalityNext
+                // );
 
                 // std::cout << _slot0.sqrtPriceX96 << " " << getSqrtRatioAtTick(params.tickUpper) << " " << params.liquidityDelta << std::endl;
                 amount0 = getAmount0Delta(
@@ -418,33 +419,33 @@ public:
 
         Position &position = positions.get(owner, tickLower, tickUpper);
 
-        uint256 _feeGrowthGlobal0X128 = feeGrowthGlobal0X128; // SLOAD for gas optimization
-        uint256 _feeGrowthGlobal1X128 = feeGrowthGlobal1X128; // SLOAD for gas optimization
+        // uint256 _feeGrowthGlobal0X128 = feeGrowthGlobal0X128; // SLOAD for gas optimization
+        // uint256 _feeGrowthGlobal1X128 = feeGrowthGlobal1X128; // SLOAD for gas optimization
 
         // if we need to update the ticks, do it
         bool flippedLower;
         bool flippedUpper;
         if (liquidityDelta != 0) {
             uint32 time = _blockTimestamp();
-            int56 tickCumulative;
-            uint160 secondsPerLiquidityCumulativeX128;
-            std::tie(tickCumulative, secondsPerLiquidityCumulativeX128) = observations.observeSingle(
-                time,
-                0,
-                slot0.tick,
-                slot0.observationIndex,
-                liquidity,
-                slot0.observationCardinality
-            );
+            // int56 tickCumulative;
+            // uint160 secondsPerLiquidityCumulativeX128;
+            // std::tie(tickCumulative, secondsPerLiquidityCumulativeX128) = observations.observeSingle(
+            //     time,
+            //     0,
+            //     slot0.tick,
+            //     slot0.observationIndex,
+            //     liquidity,
+            //     slot0.observationCardinality
+            // );
 
             flippedLower = ticks.update(
                 tickLower,
                 tick,
                 liquidityDelta,
-                _feeGrowthGlobal0X128,
-                _feeGrowthGlobal1X128,
-                secondsPerLiquidityCumulativeX128,
-                tickCumulative,
+                // _feeGrowthGlobal0X128,
+                // _feeGrowthGlobal1X128,
+                // secondsPerLiquidityCumulativeX128,
+                // tickCumulative,
                 time,
                 false,
                 maxLiquidityPerTick
@@ -453,10 +454,10 @@ public:
                 tickUpper,
                 tick,
                 liquidityDelta,
-                _feeGrowthGlobal0X128,
-                _feeGrowthGlobal1X128,
-                secondsPerLiquidityCumulativeX128,
-                tickCumulative,
+                // _feeGrowthGlobal0X128,
+                // _feeGrowthGlobal1X128,
+                // secondsPerLiquidityCumulativeX128,
+                // tickCumulative,
                 time,
                 true,
                 maxLiquidityPerTick
@@ -474,14 +475,14 @@ public:
 
         // puts("???");
 
-        uint256 feeGrowthInside0X128, feeGrowthInside1X128;
-        std::tie(feeGrowthInside0X128, feeGrowthInside1X128) = ticks.getFeeGrowthInside(
-            tickLower,
-            tickUpper,
-            tick,
-            _feeGrowthGlobal0X128,
-            _feeGrowthGlobal1X128
-        );
+        // uint256 feeGrowthInside0X128, feeGrowthInside1X128;
+        // std::tie(feeGrowthInside0X128, feeGrowthInside1X128) = ticks.getFeeGrowthInside(
+        //     tickLower,
+        //     tickUpper,
+        //     tick,
+        //     _feeGrowthGlobal0X128,
+        //     _feeGrowthGlobal1X128
+        // );
 
         // position.update(liquidityDelta, feeGrowthInside0X128, feeGrowthInside1X128);
 

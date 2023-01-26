@@ -41,15 +41,15 @@ struct Slot0 {
     Slot0(
         uint160 sqrtPriceX96,
         int24 tick,
-        uint16 observationIndex,
-        uint16 observationCardinality,
-        uint16 observationCardinalityNext,
+        // uint16 observationIndex,
+        // uint16 observationCardinality,
+        // uint16 observationCardinalityNext,
         uint8 feeProtocol
     ) : sqrtPriceX96(sqrtPriceX96),
         tick(tick),
-        observationIndex(observationIndex),
-        observationCardinality(observationCardinality),
-        observationCardinalityNext(observationCardinalityNext),
+        // observationIndex(observationIndex),
+        // observationCardinality(observationCardinality),
+        // observationCardinalityNext(observationCardinalityNext),
         feeProtocol(feeProtocol) {
 
     }
@@ -130,14 +130,14 @@ struct SwapState {
         int256 amountCalculated,
         uint160 sqrtPriceX96,
         int24 tick,
-        uint256 feeGrowthGlobalX128,
+        // uint256 feeGrowthGlobalX128,
         uint128 protocolFee,
         uint128 liquidity
     ) : amountSpecifiedRemaining(amountSpecifiedRemaining),
         amountCalculated(amountCalculated),
         sqrtPriceX96(sqrtPriceX96),
         tick(tick),
-        feeGrowthGlobalX128(feeGrowthGlobalX128),
+        // feeGrowthGlobalX128(feeGrowthGlobalX128),
         protocolFee(protocolFee),
         liquidity(liquidity)
     {

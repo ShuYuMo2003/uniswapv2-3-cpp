@@ -13,13 +13,13 @@ struct Tick {
     int128 liquidityNet;
     // fee growth per unit of liquidity on the _other_ side of this tick (relative to the current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
-    uint256 feeGrowthOutside0X128;
-    uint256 feeGrowthOutside1X128;
-    // the cumulative tick value on the other side of the tick
-    int56 tickCumulativeOutside;
-    // the seconds per unit of liquidity on the _other_ side of this tick (relative to the current tick)
-    // only has relative meaning, not absolute — the value depends on when the tick is initialized
-    uint160 secondsPerLiquidityOutsideX128;
+    // uint256 feeGrowthOutside0X128;
+    // uint256 feeGrowthOutside1X128;
+    // // the cumulative tick value on the other side of the tick
+    // int56 tickCumulativeOutside;
+    // // the seconds per unit of liquidity on the _other_ side of this tick (relative to the current tick)
+    // // only has relative meaning, not absolute — the value depends on when the tick is initialized
+    // uint160 secondsPerLiquidityOutsideX128;
     // the seconds spent on the other side of the tick (relative to the current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
     uint32 secondsOutside;
@@ -28,15 +28,15 @@ struct Tick {
     bool initialized;
     friend std::istream& operator>>(std::istream& is, Tick& tick) {
         is >> tick.liquidityGross >> tick.liquidityNet
-            >> tick.feeGrowthOutside0X128 >> tick.feeGrowthOutside1X128
-            >> tick.tickCumulativeOutside >> tick.secondsPerLiquidityOutsideX128
+            // >> tick.feeGrowthOutside0X128 >> tick.feeGrowthOutside1X128
+            // >> tick.tickCumulativeOutside >> tick.secondsPerLiquidityOutsideX128
             >> tick.secondsOutside >> tick.initialized;
         return is;
     }
     friend std::ostream& operator<<(std::ostream& os, const Tick& tick) {
         os << tick.liquidityGross << " " << tick.liquidityNet << " "
-            << tick.feeGrowthOutside0X128 << " " << tick.feeGrowthOutside1X128 << " "
-            << tick.tickCumulativeOutside << " " << tick.secondsPerLiquidityOutsideX128 << " "
+            // << tick.feeGrowthOutside0X128 << " " << tick.feeGrowthOutside1X128 << " "
+            // << tick.tickCumulativeOutside << " " << tick.secondsPerLiquidityOutsideX128 << " "
             << tick.secondsOutside << " " << tick.initialized;
         return os;
     }
@@ -53,44 +53,44 @@ struct Ticks {
     /// @param feeGrowthGlobal1X128 The all-time global fee growth, per unit of liquidity, in token1
     /// @return feeGrowthInside0X128 The all-time fee growth in token0, per unit of liquidity, inside the position's tick boundaries
     /// @return feeGrowthInside1X128 The all-time fee growth in token1, per unit of liquidity, inside the position's tick boundaries
-    std::pair<uint256, uint256> getFeeGrowthInside(
-        int24 tickLower,
-        int24 tickUpper,
-        int24 tickCurrent,
-        uint256 feeGrowthGlobal0X128,
-        uint256 feeGrowthGlobal1X128
-    ) {
-        Tick lower = data[tickLower];
-        Tick upper = data[tickUpper];
+    // std::pair<uint256, uint256> getFeeGrowthInside(
+    //     int24 tickLower,
+    //     int24 tickUpper,
+    //     int24 tickCurrent,
+    //     uint256 feeGrowthGlobal0X128,
+    //     uint256 feeGrowthGlobal1X128
+    // ) {
+    //     Tick lower = data[tickLower];
+    //     Tick upper = data[tickUpper];
 
-        // calculate fee growth below
-        uint256 feeGrowthBelow0X128;
-        uint256 feeGrowthBelow1X128;
-        if (tickCurrent >= tickLower) {
-            feeGrowthBelow0X128 = lower.feeGrowthOutside0X128;
-            feeGrowthBelow1X128 = lower.feeGrowthOutside1X128;
-        } else {
-            feeGrowthBelow0X128 = feeGrowthGlobal0X128 - lower.feeGrowthOutside0X128;
-            feeGrowthBelow1X128 = feeGrowthGlobal1X128 - lower.feeGrowthOutside1X128;
-        }
+    //     // calculate fee growth below
+    //     uint256 feeGrowthBelow0X128;
+    //     uint256 feeGrowthBelow1X128;
+    //     if (tickCurrent >= tickLower) {
+    //         feeGrowthBelow0X128 = lower.feeGrowthOutside0X128;
+    //         feeGrowthBelow1X128 = lower.feeGrowthOutside1X128;
+    //     } else {
+    //         feeGrowthBelow0X128 = feeGrowthGlobal0X128 - lower.feeGrowthOutside0X128;
+    //         feeGrowthBelow1X128 = feeGrowthGlobal1X128 - lower.feeGrowthOutside1X128;
+    //     }
 
-        // calculate fee growth above
-        uint256 feeGrowthAbove0X128;
-        uint256 feeGrowthAbove1X128;
-        if (tickCurrent < tickUpper) {
-            feeGrowthAbove0X128 = upper.feeGrowthOutside0X128;
-            feeGrowthAbove1X128 = upper.feeGrowthOutside1X128;
-        } else {
-            feeGrowthAbove0X128 = feeGrowthGlobal0X128 - upper.feeGrowthOutside0X128;
-            feeGrowthAbove1X128 = feeGrowthGlobal1X128 - upper.feeGrowthOutside1X128;
-        }
+    //     // calculate fee growth above
+    //     uint256 feeGrowthAbove0X128;
+    //     uint256 feeGrowthAbove1X128;
+    //     if (tickCurrent < tickUpper) {
+    //         feeGrowthAbove0X128 = upper.feeGrowthOutside0X128;
+    //         feeGrowthAbove1X128 = upper.feeGrowthOutside1X128;
+    //     } else {
+    //         feeGrowthAbove0X128 = feeGrowthGlobal0X128 - upper.feeGrowthOutside0X128;
+    //         feeGrowthAbove1X128 = feeGrowthGlobal1X128 - upper.feeGrowthOutside1X128;
+    //     }
 
-        uint256 feeGrowthInside0X128, feeGrowthInside1X128;
+    //     uint256 feeGrowthInside0X128, feeGrowthInside1X128;
 
-        feeGrowthInside0X128 = feeGrowthGlobal0X128 - feeGrowthBelow0X128 - feeGrowthAbove0X128;
-        feeGrowthInside1X128 = feeGrowthGlobal1X128 - feeGrowthBelow1X128 - feeGrowthAbove1X128;
-        return std::make_pair(feeGrowthInside0X128, feeGrowthInside1X128);
-    }
+    //     feeGrowthInside0X128 = feeGrowthGlobal0X128 - feeGrowthBelow0X128 - feeGrowthAbove0X128;
+    //     feeGrowthInside1X128 = feeGrowthGlobal1X128 - feeGrowthBelow1X128 - feeGrowthAbove1X128;
+    //     return std::make_pair(feeGrowthInside0X128, feeGrowthInside1X128);
+    // }
     /// @notice Updates a tick and returns true if the tick was flipped from initialized to uninitialized, or vice versa
     /// @param self The mapping containing all tick information for initialized ticks
     /// @param tick The tick that will be updated
@@ -108,10 +108,10 @@ struct Ticks {
         int24 tick,
         int24 tickCurrent,
         int128 liquidityDelta,
-        uint256 feeGrowthGlobal0X128,
-        uint256 feeGrowthGlobal1X128,
-        uint160 secondsPerLiquidityCumulativeX128,
-        int56 tickCumulative,
+        // uint256 feeGrowthGlobal0X128,
+        // uint256 feeGrowthGlobal1X128,
+        // uint160 secondsPerLiquidityCumulativeX128,
+        // int56 tickCumulative,
         uint32 time,
         bool upper,
         uint128 maxLiquidity
@@ -132,10 +132,10 @@ struct Ticks {
         if (liquidityGrossBefore == 0) {
             // by convention, we assume that all growth before a tick was initialized happened _below_ the tick
             if (tick <= tickCurrent) {
-                info.feeGrowthOutside0X128 = feeGrowthGlobal0X128;
-                info.feeGrowthOutside1X128 = feeGrowthGlobal1X128;
-                info.secondsPerLiquidityOutsideX128 = secondsPerLiquidityCumulativeX128;
-                info.tickCumulativeOutside = tickCumulative;
+                // info.feeGrowthOutside0X128 = feeGrowthGlobal0X128;
+                // info.feeGrowthOutside1X128 = feeGrowthGlobal1X128;
+                // info.secondsPerLiquidityOutsideX128 = secondsPerLiquidityCumulativeX128;
+                // info.tickCumulativeOutside = tickCumulative;
                 info.secondsOutside = time;
             }
             info.initialized = true;
@@ -167,17 +167,17 @@ struct Ticks {
     /// @return liquidityNet The amount of liquidity added (subtracted) when tick is crossed from left to right (right to left)
     int128 cross(
         int24 tick,
-        uint256 feeGrowthGlobal0X128,
-        uint256 feeGrowthGlobal1X128,
+        // uint256 feeGrowthGlobal0X128,
+        // uint256 feeGrowthGlobal1X128,
         uint160 secondsPerLiquidityCumulativeX128,
         int56 tickCumulative,
         uint32 time
     ) {
         Tick &info = data[tick];
-        info.feeGrowthOutside0X128 = feeGrowthGlobal0X128 - info.feeGrowthOutside0X128;
-        info.feeGrowthOutside1X128 = feeGrowthGlobal1X128 - info.feeGrowthOutside1X128;
-        info.secondsPerLiquidityOutsideX128 = secondsPerLiquidityCumulativeX128 - info.secondsPerLiquidityOutsideX128;
-        info.tickCumulativeOutside = tickCumulative - info.tickCumulativeOutside;
+        // info.feeGrowthOutside0X128 = feeGrowthGlobal0X128 - info.feeGrowthOutside0X128;
+        // info.feeGrowthOutside1X128 = feeGrowthGlobal1X128 - info.feeGrowthOutside1X128;
+        // info.secondsPerLiquidityOutsideX128 = secondsPerLiquidityCumulativeX128 - info.secondsPerLiquidityOutsideX128;
+        // info.tickCumulativeOutside = tickCumulative - info.tickCumulativeOutside;
         info.secondsOutside = time - info.secondsOutside;
         return info.liquidityNet;
     }
