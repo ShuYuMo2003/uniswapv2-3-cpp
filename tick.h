@@ -26,6 +26,20 @@ struct Tick {
     // true iff the tick is initialized, i.e. the value is exactly equivalent to the expression liquidityGross != 0
     // these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
     bool initialized;
+    friend std::istream& operator>>(std::istream& is, Tick& tick) {
+        is >> tick.liquidityGross >> tick.liquidityNet
+            >> tick.feeGrowthOutside0X128 >> tick.feeGrowthOutside1X128
+            >> tick.tickCumulativeOutside >> tick.secondsPerLiquidityOutsideX128
+            >> tick.secondsOutside >> tick.initialized;
+        return is;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const Tick& tick) {
+        os << tick.liquidityGross << " " << tick.liquidityNet << " "
+            << tick.feeGrowthOutside0X128 << " " << tick.feeGrowthOutside1X128 << " "
+            << tick.tickCumulativeOutside << " " << tick.secondsPerLiquidityOutsideX128 << " "
+            << tick.secondsOutside << " " << tick.initialized;
+        return os;
+    }
 };
 
 struct Ticks {
@@ -166,6 +180,22 @@ struct Ticks {
         info.tickCumulativeOutside = tickCumulative - info.tickCumulativeOutside;
         info.secondsOutside = time - info.secondsOutside;
         return info.liquidityNet;
+    }
+    friend std::istream& operator>>(std::istream& is, Ticks& ticks) {
+        ticks.data.clear();
+        int num;
+        is >> num;
+        for (int i = 0; i < num; ++i) {
+            int k = 0; is >> k >> ticks.data[k];
+        }
+        return is;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const Ticks &ticks) {
+        os << ticks.data.size() << std::endl;
+        for (auto [k, v] : ticks.data) {
+            os << k << " " << v << std::endl;
+        }
+        return os;
     }
 };
 

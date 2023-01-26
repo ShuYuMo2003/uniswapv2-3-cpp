@@ -1,6 +1,8 @@
 #ifndef headerfilepool
 #define headerfilepool
 
+#include<fstream>
+
 #include "consts.h"
 #include "global.h"
 #include "types.h"
@@ -24,9 +26,9 @@ public:
     /// @inheritdoc IUniswapV3PoolImmutables
     const address token1;
     /// @inheritdoc IUniswapV3PoolImmutables
-    const uint24 fee;
+    uint24 fee;
     /// @inheritdoc IUniswapV3PoolImmutables
-    const int24 tickSpacing;
+    int24 tickSpacing;
     /// @inheritdoc IUniswapV3PoolImmutables
     const uint128 maxLiquidityPerTick;
     /// @inheritdoc IUniswapV3PoolState
@@ -57,6 +59,26 @@ public:
         : factory(factory), token0(token0), token1(token1), fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
         feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = liquidity = 0;
     }
+    friend std::istream& operator>>(std::istream& is, Pool& pool) {
+        is >> pool.fee >> pool.tickSpacing >> pool.liquidity >> pool.slot0 >> pool.ticks >> pool.tickBitmap;
+        return is;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const Pool& pool) {
+        os << pool.fee << " " << pool.tickSpacing << " " << pool.liquidity << std::endl;
+        os << pool.slot0 << std::endl;
+        os << pool.ticks << pool.tickBitmap;
+        return os;
+    }
+    Pool(std::string filename) {
+        std::ifstream fin(filename);
+        fin >> *this;
+        fin.close();
+    }
+    void save(std::string filename) {
+        std::ofstream fout(filename);
+        fout << *this;
+        fout.close();
+    }
     void copyFrom(const Pool &o) {
         slot0 = o.slot0, liquidity = o.liquidity, ticks = o.ticks, tickBitmap = o.tickBitmap, positions = o.positions;
     }
@@ -81,7 +103,8 @@ public:
         uint16 cardinality, cardinalityNext;
         std::tie(cardinality, cardinalityNext) = observations.initialize(_blockTimestamp());
 
-        slot0 = Slot0(sqrtPriceX96, tick, 0, cardinality, cardinalityNext, 0, true);
+        // slot0 = Slot0(sqrtPriceX96, tick, 0, cardinality, cardinalityNext, 0, true);
+        slot0 = Slot0(sqrtPriceX96, tick, 0, cardinality, cardinalityNext, 0);
     
         return tick;
         // emit Initialize(sqrtPriceX96, tick);
@@ -97,7 +120,7 @@ public:
 
         Slot0 slot0Start = slot0;
 
-        require(slot0Start.unlocked, "LOK");
+        // require(slot0Start.unlocked, "LOK");
         // std::cout << zeroForOne << " " << sqrtPriceLimitX96 << " " << slot0Start.sqrtPriceX96 << " " << MIN_SQRT_RATIO << " " << MAX_SQRT_RATIO << std::endl;
         require(
             zeroForOne
@@ -106,7 +129,7 @@ public:
             "SPL"
         );
 
-        slot0.unlocked = false;
+        // slot0.unlocked = false;
 
         SwapCache cache = SwapCache(
             zeroForOne ? (slot0Start.feeProtocol % 16) : (slot0Start.feeProtocol >> 4),
@@ -143,6 +166,7 @@ public:
                 tickSpacing,
                 zeroForOne
             );
+            // assert(step.initialized == true);
             // std::cout << step.tickNext << " " << step.initialized << std::endl;
 
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
@@ -295,7 +319,7 @@ public:
         }
 
         // emit Swap(msg.sender, recipient, amount0, amount1, state.sqrtPriceX96, state.liquidity, state.tick);
-        slot0.unlocked = true;
+        // slot0.unlocked = true;
         return std::make_pair(amount0, amount1);
     }
 
@@ -448,6 +472,8 @@ public:
             }
         }
 
+        // puts("???");
+
         uint256 feeGrowthInside0X128, feeGrowthInside1X128;
         std::tie(feeGrowthInside0X128, feeGrowthInside1X128) = ticks.getFeeGrowthInside(
             tickLower,
@@ -457,7 +483,7 @@ public:
             _feeGrowthGlobal1X128
         );
 
-        position.update(liquidityDelta, feeGrowthInside0X128, feeGrowthInside1X128);
+        // position.update(liquidityDelta, feeGrowthInside0X128, feeGrowthInside1X128);
 
         // clear any tick data that is no longer needed
         if (liquidityDelta < 0) {
@@ -513,6 +539,7 @@ public:
         std::tie(std::ignore, amount0Int, amount1Int) = _modifyPosition(
             ModifyPositionParams(msg.sender, tickLower, tickUpper, -int256(amount))
         );
+        // puts("???");
 
         uint256 amount0 = uint256(-amount0Int);
         uint256 amount1 = uint256(-amount1Int);

@@ -21,6 +21,7 @@ int main() {
         60,
         uint128("11505743598341114571880798222544994")
     );
+    // pool.save("tmp0");
     std::ios::sync_with_stdio(false);
     freopen("pool_events_test", "r", stdin);
     uint256 ruamount0, ruamount1;
@@ -31,8 +32,10 @@ int main() {
     int tick, tickLower, tickUpper, zeroToOne, t = 0;
     while (std::cin >> met) {
         Pool back = pool;
+        // Pool pool("tmp" + std::to_string(t)), back = pool;
+        // pool.save("tmpread" + std::to_string(t));
         std::cin >> sender; msg.sender.FromString(sender);
-        // if (t == 338) break;
+        // if (t == 100) break;
         // std::cout << ++t << " " << met << std::endl;
         // cnt[met]++;
         long long start = getTimeNs();
@@ -92,12 +95,13 @@ int main() {
             assert(dis(ruamount0, amount0) <= 100 && dis(ruamount1, amount1) < 100);
             timeCnt[3] += getTimeNs() - start;
         } else if (met == "collect") {
-            // std::cin >> tickLower >> tickUpper >> amount0 >> amount1;
+            std::cin >> tickLower >> tickUpper >> amount0 >> amount1;
             // std::tie(ruamount0, ruamount1) = pool.collect("", tickLower, tickUpper, amount0, amount1);
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
             // assert(ruamount0 == amount0 && ruamount1 == amount1);
         }
+        // pool.save("tmp" + std::to_string(t));
         // pool.slot0.print();
         // std::cout << "sqrtPriceX96: ";
         // pool.slot0.sqrtPriceX96.PrintTable(std::cout);
@@ -107,86 +111,4 @@ int main() {
     for (int i = 0; i < 4; ++i) {
         std::cout << i << " " << cnt[i] << " " << timeCnt[i] << std::endl;
     }
-    // std::tie(uamount0, uamount1) = pool.mint(
-    //     "0xc36442b4a4522e871399cd717abdd847ab11fe88",
-    //     193320,
-    //     193620,
-    //     "176527367721",
-    //     ""
-    // );
-    // assert(uamount0 == 0 && uamount1 == "42055547280282");
-    // std::cout << "sqrtPriceX96: " << pool.slot0.sqrtPriceX96 << std::endl;
-    // std::cout << "liquidity: " << pool.liquidity << std::endl;
-
-    // std::tie(uamount0, uamount1) = pool.mint(
-    //     "0xc36442b4a4522e871399cd717abdd847ab11fe88",
-    //     193320,
-    //     193860,
-    //     "944144821117635",
-    //     ""
-    // );
-    // std::cout << uamount0 << " " << uamount1 << std::endl;
-    // assert(uamount0 == "615723603" && uamount1 == "247499998952080517");
-    // std::cout << "sqrtPriceX96: " << pool.slot0.sqrtPriceX96 << std::endl;
-    // std::cout << "liquidity: " << pool.liquidity << std::endl;
-
-    // std::tie(uamount0, uamount1) = pool.mint(
-    //     "0xc36442b4a4522e871399cd717abdd847ab11fe88",
-    //     184200,
-    //     207240,
-    //     "650015491760",
-    //     ""
-    // );
-    // std::cout << uamount0 << " " << uamount1 << std::endl;
-    // assert(uamount0 == "20000000" && uamount1 == "3922623145361175");
-    // std::cout << "sqrtPriceX96: " << pool.slot0.sqrtPriceX96 << std::endl;
-    // std::cout << "liquidity: " << pool.liquidity << std::endl;
-
-    // std::tie(uamount0, uamount1) = pool.mint(
-    //     "0xc36442b4a4522e871399cd717abdd847ab11fe88",
-    //     168120,
-    //     207240,
-    //     "321757635921",
-    //     ""
-    // );
-    // std::cout << uamount0 << " " << uamount1 << std::endl;
-    // assert(uamount0 == "9899999" && uamount1 == "3717814976258994");
-    // std::cout << "sqrtPriceX96: " << pool.slot0.sqrtPriceX96 << std::endl;
-    // std::cout << "liquidity: " << pool.liquidity << std::endl;
-
-    // int256 amount0, amount1;
-    // std::tie(amount0, amount1) = pool.swap(
-    //     "0xe866ece4bbd0ac75577225ee2c464ef16dc8b1f3",
-    //     true,
-    //     "1000000",
-    //     "1267868630852020208767707712718408",
-    //     ""
-    // );
-    
-    // assert(amount0 == "1000000");
-    // assert(amount1 == int256("-256078805821986"));
-
-    // std::tie(amount0, amount1) = pool.swap(
-    //     "0x2ec255797fef7669fa243509b7a599121148ffba",
-    //     true,
-    //     "85000000",
-    //     "1267918992828562240687553738070979",
-    //     ""
-    // );
-    
-    // std::cout << amount0 << " " << amount1 << std::endl;
-    // assert(amount0 == "85000000");
-    // assert(amount1 == int256("-21735096630391110"));
-
-    // std::tie(amount0, amount1) = pool.swap(
-    //     "0x2ec255797fef7669fa243509b7a599121148ffba",
-    //     true,
-    //     "10822795",
-    //     "1267687408174265640077661028005782",
-    //     ""
-    // );
-    
-    // std::cout << amount0 << " " << amount1 << std::endl;
-    // assert(amount0 == "10822795");
-    // assert(amount1 == int256("-2762988356206610"));
 }

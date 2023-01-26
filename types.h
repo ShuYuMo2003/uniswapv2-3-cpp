@@ -37,8 +37,6 @@ struct Slot0 {
     // the current protocol fee as a percentage of the swap fee taken on withdrawal
     // represented as an integer denominator (1/x)%
     uint8 feeProtocol;
-    // whether the pool is locked
-    bool unlocked;
     Slot0() { sqrtPriceX96 = 0; }
     Slot0(
         uint160 sqrtPriceX96,
@@ -46,16 +44,26 @@ struct Slot0 {
         uint16 observationIndex,
         uint16 observationCardinality,
         uint16 observationCardinalityNext,
-        uint8 feeProtocol,
-        bool unlocked
+        uint8 feeProtocol
     ) : sqrtPriceX96(sqrtPriceX96),
         tick(tick),
         observationIndex(observationIndex),
         observationCardinality(observationCardinality),
         observationCardinalityNext(observationCardinalityNext),
-        feeProtocol(feeProtocol),
-        unlocked(unlocked) {
+        feeProtocol(feeProtocol) {
 
+    }
+    friend std::istream& operator>>(std::istream& is, Slot0& slot) {
+        is >> slot.sqrtPriceX96 >> slot.tick
+            >> slot.observationIndex >> slot.observationCardinality
+            >> slot.observationCardinalityNext >> slot.feeProtocol;
+        return is;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const Slot0& slot) {
+        os << slot.sqrtPriceX96 << " " << slot.tick << " "
+            << slot.observationIndex << " " << slot.observationCardinality << " "
+            << slot.observationCardinalityNext << " " << slot.feeProtocol;
+        return os;
     }
     void print() {
         std::cout << "---------- Slot0 INFO BELOW ------------" << std::endl
@@ -64,8 +72,7 @@ struct Slot0 {
             << "\nobservationIndex: " << observationIndex
             << "\nobservationCardinality: " << observationCardinality
             << "\nobservationCardinalityNext: " << observationCardinalityNext
-            << "\nfeeProtocol: " << feeProtocol
-            << "\nunlocked: " << unlocked << std::endl;
+            << "\nfeeProtocol: " << feeProtocol;
         std::cout << "---------- Slot0 INFO ABOVE ------------" << std::endl;
     }
 };

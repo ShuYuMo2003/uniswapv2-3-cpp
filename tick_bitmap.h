@@ -75,6 +75,32 @@ public:
         }
         std::cout << std::endl;
     }
+    friend std::istream& operator>>(std::istream& is, TickBitmap& tickBitmap) {
+        tickBitmap.data.clear();
+        int num; is >> num;
+        for (int i = 0; i < num; ++i) {
+            long long x; is >> x;
+            // std::cerr << "??? " << x << std::endl;
+            tickBitmap.data[x>>8] |= uint256(1)<<(x%256);
+        }
+        return is;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const TickBitmap& tickBitmap) {
+        // std::cerr << tickBitmap.data.size() << std::endl;
+        std::vector<long long> res;
+        for (auto [k, v] : tickBitmap.data) {
+            // std::cerr << k << " " << v << std::endl;
+            for (int i = 0; i < 256; ++i) {
+                if (((v>>i) & uint256(1)) > 0) {
+                    res.push_back(((long long)k<<8)|i);
+                }
+            }
+        }
+        os << res.size() << std::endl;
+        for (auto x : res) os << x << " ";
+        os << std::endl;
+        return os;
+    }
 };
 
 #endif
