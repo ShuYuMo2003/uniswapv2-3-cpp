@@ -149,7 +149,7 @@ public:
             slot0Start.sqrtPriceX96,
             slot0Start.tick,
             // zeroForOne ? feeGrowthGlobal0X128 : feeGrowthGlobal1X128,
-            0,
+            // 0,
             cache.liquidityStart
         );
 
@@ -210,12 +210,12 @@ public:
             if (cache.feeProtocol > 0) {
                 uint256 delta = step.feeAmount / cache.feeProtocol;
                 step.feeAmount -= delta;
-                state.protocolFee += uint128(delta);
+                // state.protocolFee += uint128(delta);
             }
 
             // update global fee tracker
-            if (state.liquidity > 0)
-                state.feeGrowthGlobalX128 += mulDiv(step.feeAmount, Q128, state.liquidity);
+            // if (state.liquidity > 0)
+            //     state.feeGrowthGlobalX128 += mulDiv(step.feeAmount, Q128, state.liquidity);
 
             // shift tick if we reached the next price
             if (state.sqrtPriceX96 == step.sqrtPriceNextX96) {
@@ -235,12 +235,12 @@ public:
                     //     cache.computedLatestObservation = true;
                     // }
                     int128 liquidityNet = ticks.cross(
-                        step.tickNext,
+                        step.tickNext
                         // (zeroForOne ? state.feeGrowthGlobalX128 : feeGrowthGlobal0X128),
                         // (zeroForOne ? feeGrowthGlobal1X128 : state.feeGrowthGlobalX128),
-                        cache.secondsPerLiquidityCumulativeX128,
-                        cache.tickCumulative,
-                        cache.blockTimestamp
+                        // cache.secondsPerLiquidityCumulativeX128,
+                        // cache.tickCumulative,
+                        // cache.blockTimestamp
                     );
                     // std::cout << state.tick << " " << step.tickNext << " " << liquidityNet << std::endl;
                     // if we're moving leftward, we interpret liquidityNet as the opposite sign
@@ -288,13 +288,13 @@ public:
 
         // update fee growth global and, if necessary, protocol fees
         // overflow is acceptable, protocol has to withdraw before it hits type(uint128).max fees
-        if (zeroForOne) {
-            // feeGrowthGlobal0X128 = state.feeGrowthGlobalX128;
-            if (state.protocolFee > 0) protocolFees.token0 += state.protocolFee;
-        } else {
-            // feeGrowthGlobal1X128 = state.feeGrowthGlobalX128;
-            if (state.protocolFee > 0) protocolFees.token1 += state.protocolFee;
-        }
+        // if (zeroForOne) {
+        //     feeGrowthGlobal0X128 = state.feeGrowthGlobalX128;
+        //     if (state.protocolFee > 0) protocolFees.token0 += state.protocolFee;
+        // } else {
+        //     feeGrowthGlobal1X128 = state.feeGrowthGlobalX128;
+        //     if (state.protocolFee > 0) protocolFees.token1 += state.protocolFee;
+        // }
 
         int256 amount0, amount1;
         if (zeroForOne == exactInput) {

@@ -119,9 +119,9 @@ struct SwapState {
     // the tick associated with the current price
     int24 tick;
     // the global fee growth of the input token
-    uint256 feeGrowthGlobalX128;
+    // uint256 feeGrowthGlobalX128;
     // amount of input token paid as protocol fee
-    uint128 protocolFee;
+    // uint128 protocolFee;
     // the current liquidity in range
     uint128 liquidity;
 
@@ -131,14 +131,14 @@ struct SwapState {
         uint160 sqrtPriceX96,
         int24 tick,
         // uint256 feeGrowthGlobalX128,
-        uint128 protocolFee,
+        // uint128 protocolFee,
         uint128 liquidity
     ) : amountSpecifiedRemaining(amountSpecifiedRemaining),
         amountCalculated(amountCalculated),
         sqrtPriceX96(sqrtPriceX96),
         tick(tick),
         // feeGrowthGlobalX128(feeGrowthGlobalX128),
-        protocolFee(protocolFee),
+        // protocolFee(protocolFee),
         liquidity(liquidity)
     {
 

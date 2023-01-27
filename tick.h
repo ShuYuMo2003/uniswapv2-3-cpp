@@ -22,7 +22,7 @@ struct Tick {
     // uint160 secondsPerLiquidityOutsideX128;
     // the seconds spent on the other side of the tick (relative to the current tick)
     // only has relative meaning, not absolute — the value depends on when the tick is initialized
-    uint32 secondsOutside;
+    // uint32 secondsOutside;
     // true iff the tick is initialized, i.e. the value is exactly equivalent to the expression liquidityGross != 0
     // these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
     bool initialized;
@@ -30,14 +30,16 @@ struct Tick {
         is >> tick.liquidityGross >> tick.liquidityNet
             // >> tick.feeGrowthOutside0X128 >> tick.feeGrowthOutside1X128
             // >> tick.tickCumulativeOutside >> tick.secondsPerLiquidityOutsideX128
-            >> tick.secondsOutside >> tick.initialized;
+            // >> tick.secondsOutside
+            >> tick.initialized;
         return is;
     }
     friend std::ostream& operator<<(std::ostream& os, const Tick& tick) {
         os << tick.liquidityGross << " " << tick.liquidityNet << " "
             // << tick.feeGrowthOutside0X128 << " " << tick.feeGrowthOutside1X128 << " "
             // << tick.tickCumulativeOutside << " " << tick.secondsPerLiquidityOutsideX128 << " "
-            << tick.secondsOutside << " " << tick.initialized;
+            // << tick.secondsOutside << " "
+            << tick.initialized;
         return os;
     }
 };
@@ -131,13 +133,13 @@ struct Ticks {
 
         if (liquidityGrossBefore == 0) {
             // by convention, we assume that all growth before a tick was initialized happened _below_ the tick
-            if (tick <= tickCurrent) {
+            // if (tick <= tickCurrent) {
                 // info.feeGrowthOutside0X128 = feeGrowthGlobal0X128;
                 // info.feeGrowthOutside1X128 = feeGrowthGlobal1X128;
                 // info.secondsPerLiquidityOutsideX128 = secondsPerLiquidityCumulativeX128;
                 // info.tickCumulativeOutside = tickCumulative;
-                info.secondsOutside = time;
-            }
+                // info.secondsOutside = time;
+            // }
             info.initialized = true;
         }
 
@@ -166,20 +168,20 @@ struct Ticks {
     /// @param time The current block.timestamp
     /// @return liquidityNet The amount of liquidity added (subtracted) when tick is crossed from left to right (right to left)
     int128 cross(
-        int24 tick,
+        int24 tick
         // uint256 feeGrowthGlobal0X128,
         // uint256 feeGrowthGlobal1X128,
-        uint160 secondsPerLiquidityCumulativeX128,
-        int56 tickCumulative,
-        uint32 time
+        // uint160 secondsPerLiquidityCumulativeX128,
+        // int56 tickCumulative,
+        // uint32 time
     ) {
-        Tick &info = data[tick];
+        // Tick &info = data[tick];
         // info.feeGrowthOutside0X128 = feeGrowthGlobal0X128 - info.feeGrowthOutside0X128;
         // info.feeGrowthOutside1X128 = feeGrowthGlobal1X128 - info.feeGrowthOutside1X128;
         // info.secondsPerLiquidityOutsideX128 = secondsPerLiquidityCumulativeX128 - info.secondsPerLiquidityOutsideX128;
         // info.tickCumulativeOutside = tickCumulative - info.tickCumulativeOutside;
-        info.secondsOutside = time - info.secondsOutside;
-        return info.liquidityNet;
+        // info.secondsOutside = time - info.secondsOutside;
+        return data[tick].liquidityNet;
     }
     friend std::istream& operator>>(std::istream& is, Ticks& ticks) {
         ticks.data.clear();
