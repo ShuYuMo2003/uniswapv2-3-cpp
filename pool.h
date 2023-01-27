@@ -20,11 +20,11 @@
 class Pool {
 public:
     /// @inheritdoc IUniswapV3PoolImmutables
-    const address factory;
+    // const address factory;
     /// @inheritdoc IUniswapV3PoolImmutables
-    const address token0;
+    // const address token0;
     /// @inheritdoc IUniswapV3PoolImmutables
-    const address token1;
+    // const address token1;
     /// @inheritdoc IUniswapV3PoolImmutables
     uint24 fee;
     /// @inheritdoc IUniswapV3PoolImmutables
@@ -55,8 +55,13 @@ public:
     /// @inheritdoc IUniswapV3PoolState
     ProtocolFees protocolFees;
     uint256 balance0, balance1;
-    Pool(address factory, address token0, address token1, uint24 fee, int24 tickSpacing, uint128 maxLiquidityPerTick)
-        : factory(factory), token0(token0), token1(token1), fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
+    // Pool(address factory, address token0, address token1, uint24 fee, int24 tickSpacing, uint128 maxLiquidityPerTick)
+    //     : factory(factory), token0(token0), token1(token1), fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
+    //     // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = 
+    //     liquidity = 0;
+    // }
+    Pool(uint24 fee, int24 tickSpacing, uint128 maxLiquidityPerTick)
+        : fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
         // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = 
         liquidity = 0;
     }
@@ -87,7 +92,8 @@ public:
         copyFrom(o);
         return *this;
     }
-    Pool(const Pool &o) : factory(o.factory), token0(o.token0), token1(o.token1), fee(o.fee), tickSpacing(o.tickSpacing), maxLiquidityPerTick(o.maxLiquidityPerTick) {
+    // Pool(const Pool &o) : factory(o.factory), token0(o.token0), token1(o.token1), fee(o.fee), tickSpacing(o.tickSpacing), maxLiquidityPerTick(o.maxLiquidityPerTick) {
+    Pool(const Pool &o) : fee(o.fee), tickSpacing(o.tickSpacing), maxLiquidityPerTick(o.maxLiquidityPerTick) {
         copyFrom(o);
     }
     /// @dev Returns the block timestamp truncated to 32 bits, i.e. mod 2**32. This method is overridden in tests.
@@ -305,19 +311,19 @@ public:
             amount1 = amountSpecified - state.amountSpecifiedRemaining;
         }
         // do the transfers and collect payment
-        if (zeroForOne) {
-            if (amount1 < 0) safeTransfer(token1, recipient, uint256(-amount1));
+        // if (zeroForOne) {
+        //     if (amount1 < 0) safeTransfer(token1, recipient, uint256(-amount1));
 
-            uint256 balance0Before = balance0;
-            // IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
-            // require(balance0Before.add(uint256(amount0)) <= balance0(), 'IIA');
-        } else {
-            if (amount0 < 0) safeTransfer(token0, recipient, uint256(-amount0));
+        //     uint256 balance0Before = balance0;
+        //     IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+        //     require(balance0Before.add(uint256(amount0)) <= balance0(), 'IIA');
+        // } else {
+        //     if (amount0 < 0) safeTransfer(token0, recipient, uint256(-amount0));
 
-            uint256 balance1Before = balance1;
-            // IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
-            // require(balance1Before.add(uint256(amount1)) <= balance1(), 'IIA');
-        }
+        //     uint256 balance1Before = balance1;
+        //     IUniswapV3SwapCallback(msg.sender).uniswapV3SwapCallback(amount0, amount1, data);
+        //     require(balance1Before.add(uint256(amount1)) <= balance1(), 'IIA');
+        // }
 
         // emit Swap(msg.sender, recipient, amount0, amount1, state.sqrtPriceX96, state.liquidity, state.tick);
         // slot0.unlocked = true;
@@ -555,31 +561,31 @@ public:
     }
 
     /// @inheritdoc IUniswapV3PoolActions
-    std::pair<uint128, uint128> collect(
-        address recipient,
-        int24 tickLower,
-        int24 tickUpper,
-        uint128 amount0Requested,
-        uint128 amount1Requested
-    ) {
-        // we don't need to checkTicks here, because invalid positions will never have non-zero tokensOwed{0,1}
-        Position &position = positions.get(msg.sender, tickLower, tickUpper);
+    // std::pair<uint128, uint128> collect(
+    //     address recipient,
+    //     int24 tickLower,
+    //     int24 tickUpper,
+    //     uint128 amount0Requested,
+    //     uint128 amount1Requested
+    // ) {
+    //     // we don't need to checkTicks here, because invalid positions will never have non-zero tokensOwed{0,1}
+    //     Position &position = positions.get(msg.sender, tickLower, tickUpper);
 
-        uint128 amount0 = amount0Requested > position.tokensOwed0 ? position.tokensOwed0 : amount0Requested;
-        uint128 amount1 = amount1Requested > position.tokensOwed1 ? position.tokensOwed1 : amount1Requested;
+    //     uint128 amount0 = amount0Requested > position.tokensOwed0 ? position.tokensOwed0 : amount0Requested;
+    //     uint128 amount1 = amount1Requested > position.tokensOwed1 ? position.tokensOwed1 : amount1Requested;
 
-        if (amount0 > 0) {
-            position.tokensOwed0 -= amount0;
-            safeTransfer(token0, recipient, amount0);
-        }
-        if (amount1 > 0) {
-            position.tokensOwed1 -= amount1;
-            safeTransfer(token1, recipient, amount1);
-        }
+    //     if (amount0 > 0) {
+    //         position.tokensOwed0 -= amount0;
+    //         safeTransfer(token0, recipient, amount0);
+    //     }
+    //     if (amount1 > 0) {
+    //         position.tokensOwed1 -= amount1;
+    //         safeTransfer(token1, recipient, amount1);
+    //     }
 
-        return std::pair(amount0, amount1);
-        // emit Collect(msg.sender, recipient, tickLower, tickUpper, amount0, amount1);
-    }
+    //     return std::pair(amount0, amount1);
+    //     emit Collect(msg.sender, recipient, tickLower, tickUpper, amount0, amount1);
+    // }
 };
 
 #endif
