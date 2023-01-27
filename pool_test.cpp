@@ -38,10 +38,10 @@ int main() {
         // if (t == 100) break;
         // std::cout << ++t << " " << met << std::endl;
         // cnt[met]++;
-        long long start = getTimeNs();
         if (met == "initialize") {
             cnt[0]++;
             std::cin >> price >> tick;
+            long long start = getTimeNs();
             // std::cout << price << " " << tick << std::endl;
             int r = pool.initialize(price);
             assert(r == tick);
@@ -49,6 +49,7 @@ int main() {
         } else if (met == "mint") {
             cnt[1]++;
             std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
+            long long start = getTimeNs();
             std::tie(ruamount0, ruamount1) = pool.mint(sender, tickLower, tickUpper, liquidity, "");
             timeCnt[1] += getTimeNs() - start;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
@@ -64,9 +65,11 @@ int main() {
             for (int i = 0; i < 3; ++i) {
                 if (i) pool = back;
                 // std::cout << "================= Swap attempt " << (i + 1) << "==================\n";
+                long long start = getTimeNs();
                 if (i == 0) std::tie(ramount0, ramount1) = pool.swap(sender, zeroToOne, amount, _price, "");
                 else if (i == 1) std::tie(ramount0, ramount1) = pool.swap(sender, zeroToOne, zeroToOne ? amount1 : amount0, _price, "");
                 else if (i == 2) std::tie(ramount0, ramount1) = pool.swap(sender, zeroToOne, amount + "0", price, "");
+                timeCnt[2] += getTimeNs() - start;
                 // std::cout << "amount0: " << amount0 << " " << ramount0 << std::endl;
                 // std::cout << "amount1: " << amount1 << " " << ramount1 << std::endl;
                 // assert(ramount0 == amount0 && ramount1 == amount1);
@@ -84,10 +87,10 @@ int main() {
                 }
             }
             assert(suc);
-            timeCnt[2] += getTimeNs() - start;
         } else if (met == "burn") {
             cnt[3]++;
             std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
+            long long start = getTimeNs();
             std::tie(ruamount0, ruamount1) = pool.burn(tickLower, tickUpper, amount);
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
