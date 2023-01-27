@@ -13,17 +13,20 @@ long long getTimeNs() {
 }
 
 int main() {
+    std::ios::sync_with_stdio(false);
+    freopen("pool_events_test", "r", stdin);
+    int fee, tickSpacing;
+    uint256 maxLiquidityPerTick;
+    std::cin >> fee >> tickSpacing >> maxLiquidityPerTick;
     Pool pool(
         // "0x1f98431c8ad98523631ae4a59f267346ea31f984",
         // "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
         // "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
-        3000,
-        60,
-        uint128("11505743598341114571880798222544994")
+        fee,
+        tickSpacing,
+        maxLiquidityPerTick
     );
     // pool.save("tmp0");
-    std::ios::sync_with_stdio(false);
-    freopen("pool_events_test", "r", stdin);
     uint256 ruamount0, ruamount1;
     int256 ramount0, ramount1;
     std::string met, price, sender, amount, amount0, amount1, liquidity;
@@ -114,4 +117,5 @@ int main() {
     for (int i = 0; i < 4; ++i) {
         std::cout << i << " " << cnt[i] << " " << timeCnt[i] << std::endl;
     }
+    pool.save("pool_state");
 }

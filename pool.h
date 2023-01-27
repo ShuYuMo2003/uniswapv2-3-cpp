@@ -30,7 +30,7 @@ public:
     /// @inheritdoc IUniswapV3PoolImmutables
     int24 tickSpacing;
     /// @inheritdoc IUniswapV3PoolImmutables
-    const uint128 maxLiquidityPerTick;
+    uint128 maxLiquidityPerTick;
     /// @inheritdoc IUniswapV3PoolState
     Slot0 slot0;
     /// @inheritdoc IUniswapV3PoolState
@@ -66,11 +66,12 @@ public:
         liquidity = 0;
     }
     friend std::istream& operator>>(std::istream& is, Pool& pool) {
-        is >> pool.fee >> pool.tickSpacing >> pool.liquidity >> pool.slot0 >> pool.ticks >> pool.tickBitmap;
+        is >> pool.fee >> pool.tickSpacing >> pool.maxLiquidityPerTick
+            >> pool.liquidity >> pool.slot0 >> pool.ticks >> pool.tickBitmap;
         return is;
     }
     friend std::ostream& operator<<(std::ostream& os, const Pool& pool) {
-        os << pool.fee << " " << pool.tickSpacing << " " << pool.liquidity << std::endl;
+        os << pool.fee << " " << pool.tickSpacing << " " << pool.maxLiquidityPerTick << " " << pool.liquidity << std::endl;
         os << pool.slot0 << std::endl;
         os << pool.ticks << pool.tickBitmap;
         return os;
