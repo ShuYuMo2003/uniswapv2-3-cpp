@@ -72,7 +72,7 @@ struct Slot0 {
             << "\nobservationIndex: " << observationIndex
             << "\nobservationCardinality: " << observationCardinality
             << "\nobservationCardinalityNext: " << observationCardinalityNext
-            << "\nfeeProtocol: " << feeProtocol;
+            << "\nfeeProtocol: " << feeProtocol << std::endl;
         std::cout << "---------- Slot0 INFO ABOVE ------------" << std::endl;
     }
 };

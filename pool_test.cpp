@@ -109,7 +109,7 @@ int main() {
         }
         // pool.save("tmp" + std::to_string(t));
         // pool.slot0.print();
-        // std::cout << "sqrtPriceX96: ";
+        // std::cout << "sqrtPriceX96: " <<;
         // pool.slot0.sqrtPriceX96.PrintTable(std::cout);
         // std::cout << std::endl;
         // std::cout << "liquidity: " << pool.liquidity << std::endl;

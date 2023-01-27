@@ -46,7 +46,7 @@ public:
     /// @inheritdoc IUniswapV3PoolState
     TickBitmap tickBitmap;
     /// @inheritdoc IUniswapV3PoolState
-    Positions positions;
+    // Positions positions;
     // accumulated protocol fees in token0/token1 units
     struct ProtocolFees {
         uint128 token0;
@@ -87,7 +87,8 @@ public:
         fout.close();
     }
     void copyFrom(const Pool &o) {
-        slot0 = o.slot0, liquidity = o.liquidity, ticks = o.ticks, tickBitmap = o.tickBitmap, positions = o.positions;
+        slot0 = o.slot0, liquidity = o.liquidity, ticks = o.ticks, tickBitmap = o.tickBitmap;
+        // , positions = o.positions;
     }
     const Pool & operator=(const Pool &o) {
         copyFrom(o);
@@ -342,13 +343,15 @@ public:
     /// @return position a storage pointer referencing the position with the given owner and tick range
     /// @return amount0 the amount of token0 owed to the pool, negative if the pool should pay the recipient
     /// @return amount1 the amount of token1 owed to the pool, negative if the pool should pay the recipient
-    std::tuple<Position, int256, int256> _modifyPosition(ModifyPositionParams params) {
+    // std::tuple<Position, int256, int256> _modifyPosition(ModifyPositionParams params) {
+    std::tuple<int256, int256> _modifyPosition(ModifyPositionParams params) {
         checkTicks(params.tickLower, params.tickUpper);
         // params.print();
 
         Slot0 &_slot0 = slot0; // SLOAD for gas optimization
 
-        Position &position = _updatePosition(
+        // Position &position =
+        _updatePosition(
             params.owner,
             params.tickLower,
             params.tickUpper,
@@ -358,7 +361,7 @@ public:
 
         // position.print();
 
-        int256 amount0, amount1;
+        int256 amount0 = 0, amount1 = 0;
 
         if (params.liquidityDelta != 0) {
             if (_slot0.tick < params.tickLower) {
@@ -407,7 +410,8 @@ public:
                 );
             }
         }
-        return std::make_tuple(position, amount0, amount1);
+        return std::make_tuple(amount0, amount1);
+        // return std::make_tuple(position, amount0, amount1);
     }
 
     /// @dev Gets and updates a position with the given liquidity delta
@@ -415,7 +419,8 @@ public:
     /// @param tickLower the lower tick of the position's tick range
     /// @param tickUpper the upper tick of the position's tick range
     /// @param tick the current tick, passed to avoid sloads
-    Position& _updatePosition(
+    // Position& _updatePosition(
+    void _updatePosition(
         address owner,
         int24 tickLower,
         int24 tickUpper,
@@ -424,7 +429,7 @@ public:
     ) {
         // std::cout << owner << " " << tickLower << " " << tickUpper << " " << liquidityDelta << " " << tick << std::endl;
 
-        Position &position = positions.get(owner, tickLower, tickUpper);
+        // Position &position = positions.get(owner, tickLower, tickUpper);
 
         // uint256 _feeGrowthGlobal0X128 = feeGrowthGlobal0X128; // SLOAD for gas optimization
         // uint256 _feeGrowthGlobal1X128 = feeGrowthGlobal1X128; // SLOAD for gas optimization
@@ -503,7 +508,7 @@ public:
             }
         }
 
-        return position;
+        // return position;
     }
 
     /// @inheritdoc IUniswapV3PoolActions
@@ -517,7 +522,8 @@ public:
     ) {
         require(amount > 0);
         int256 amount0Int, amount1Int;
-        std::tie(std::ignore, amount0Int, amount1Int) = _modifyPosition(
+        // std::tie(std::ignore, amount0Int, amount1Int) = _modifyPosition(
+        std::tie(amount0Int, amount1Int) = _modifyPosition(
             ModifyPositionParams(recipient, tickLower, tickUpper, int256(amount))
         );
 
@@ -544,7 +550,7 @@ public:
         uint128 amount
     ) {
         int256 amount0Int, amount1Int;
-        std::tie(std::ignore, amount0Int, amount1Int) = _modifyPosition(
+        std::tie(amount0Int, amount1Int) = _modifyPosition(
             ModifyPositionParams(msg.sender, tickLower, tickUpper, -int256(amount))
         );
         // puts("???");
@@ -552,11 +558,11 @@ public:
         uint256 amount0 = uint256(-amount0Int);
         uint256 amount1 = uint256(-amount1Int);
 
-        if (amount0 > 0 || amount1 > 0) {
-            Position &p = positions.get(msg.sender, tickLower, tickUpper);
-            p.tokensOwed0 += uint128(amount0);
-            p.tokensOwed1 += uint128(amount1);
-        }
+        // if (amount0 > 0 || amount1 > 0) {
+        //     Position &p = positions.get(msg.sender, tickLower, tickUpper);
+        //     p.tokensOwed0 += uint128(amount0);
+        //     p.tokensOwed1 += uint128(amount1);
+        // }
         return std::make_pair(amount0, amount1);
         // emit Burn(msg.sender, tickLower, tickUpper, amount, amount0, amount1);
     }
