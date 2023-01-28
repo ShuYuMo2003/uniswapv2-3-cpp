@@ -11,6 +11,7 @@ class TickBitmap {
 public:
     std::pair<int16, uint8> position(int24 tick) {
         return std::make_pair(int16(tick >> 8), uint8(tick % 256));
+        std::cerr << int16(tick >> 8) << " " << uint8(tick % 256) << std::endl;
     }
     /// @notice Flips the initialized state for a given tick from false to true, or vice versa
     /// @param self The mapping in which to flip the tick

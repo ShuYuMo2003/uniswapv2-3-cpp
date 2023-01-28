@@ -6,10 +6,7 @@ uint256 dis(uint256 a, uint256 b) {
 }
 
 long long getTimeNs() {
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-
-    return ts.tv_sec*1000000000+ts.tv_nsec;
+    return clock();
 }
 
 int main() {

@@ -6,15 +6,17 @@
 #include "ttmathint.h"
 #include "ttmathuint.h"
 
+typedef unsigned int uint;
 typedef uint uint8;
 typedef uint uint16;
 typedef uint uint24;
 typedef uint uint32;
-typedef ttmath::UInt<2> uint64;
-typedef ttmath::UInt<4> uint128;
-typedef ttmath::UInt<5> uint160;
-typedef ttmath::UInt<8> uint256;
-typedef ttmath::UInt<32> address;
+typedef ttmath::UInt<2>   uint64;
+typedef ttmath::UInt<4>   uint128;
+typedef ttmath::UInt<5>   uint160;
+typedef ttmath::UInt<8>   uint256;
+typedef ttmath::UInt<512> uint512;
+typedef ttmath::UInt<32>  address;
 typedef int int16;
 typedef int int24;
 typedef ttmath::Int<2> int56;
@@ -198,7 +200,7 @@ struct ModifyPositionParams {
         tickLower(tickLower),
         tickUpper(tickUpper),
         liquidityDelta(liquidityDelta) {
-        
+
     }
     void print() {
         std::cout << owner << " " << tickLower << " " << tickUpper << " " << liquidityDelta << std::endl;

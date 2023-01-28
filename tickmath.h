@@ -40,7 +40,7 @@ uint160 getSqrtRatioAtTick(int24 tick) {
     if ((absTick&(uint256(1)<<18)) != 0) ratio = (ratio * uint256("691415978906521570653435304214168")) >> 128;
     if ((absTick&(uint256(1)<<19)) != 0) ratio = (ratio * uint256("1404880482679654955896180642")) >> 128;
 
-    if (tick > 0) ratio = (uint256(0) - 1) / ratio;
+    if (tick > 0) ratio = uint256("115792089237316195423570985008687907853269984665640564039457584007913129639935") / ratio;
 
     return uint160((ratio>>32) + (ratio % (uint256(1)<<32) == 0 ? 0 : 1));
 }
