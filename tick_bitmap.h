@@ -10,8 +10,8 @@ class TickBitmap {
     std::map<int16, uint256> data;
 public:
     std::pair<int16, uint8> position(int24 tick) {
-        return std::make_pair(int16(tick >> 8), uint8(tick % 256));
-        std::cerr << int16(tick >> 8) << " " << uint8(tick % 256) << std::endl;
+        return std::make_pair(int16(tick >> 8), uint8(tick - (uint16(tick >> 8) * 256)));
+        // std::cerr << int16(tick >> 8) << " " << uint8(tick % 256) << std::endl;
     }
     /// @notice Flips the initialized state for a given tick from false to true, or vice versa
     /// @param self The mapping in which to flip the tick
@@ -61,8 +61,8 @@ public:
             bool initialized = masked != 0;
             // overflow/underflow is possible, but prevented externally by limiting both tickSpacing and tick
             int24 next = initialized
-                ? (compressed + 1 + int24(leastSignificantBit(masked) - bitPos)) * tickSpacing
-                : (compressed + 1 + int24(((1<<8)-1) - bitPos)) * tickSpacing;
+                ? (compressed + 1 + int24(int24(leastSignificantBit(masked)) - int24(bitPos))) * tickSpacing
+                : (compressed + 1 + int24(((1<<8)-1) - int24(bitPos))) * tickSpacing;
             return std::make_pair(next, initialized);
         }
     }

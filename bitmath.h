@@ -40,17 +40,18 @@ uint8 mostSignificantBit(uint256 x) {
 
 uint8 leastSignificantBit(uint256 x) {
     int r = 255;
-    if ((x & (uint128(0)-1)) > 0) {
+    // TODO: [fix] `ttmath` incorrect behaviour when overflow occurs between unsigned variable.
+    if ((x & uint128("340282366920938463463374607431768211455" /* equal to (1 << 128) - 1 */ ))> 0) {
         r -= 128;
     } else {
         x >>= 128;
     }
-    if ((x & (uint64(0)-1)) > 0) {
+    if ((x & uint64("18446744073709551615" /* equal to (1 << 64) - 1 */ )) > 0) {
         r -= 64;
     } else {
         x >>= 64;
     }
-    if ((x & (uint32(0)-1)) > 0) {
+    if ((x & uint32(4294967295 /* equal to (1 << 32) - 1 */ )) > 0) {
         r -= 32;
     } else {
         x >>= 32;

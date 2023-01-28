@@ -31,6 +31,7 @@ int main() {
     long long timeCnt[4] = {0};
     int tick, tickLower, tickUpper, zeroToOne, t = 0;
     while (std::cin >> met) {
+        // std::cerr << "Got contract = " << met << std::endl;
         Pool back = pool;
         // Pool pool("tmp" + std::to_string(t)), back = pool;
         // pool.save("tmpread" + std::to_string(t));
