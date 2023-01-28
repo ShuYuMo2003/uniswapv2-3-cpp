@@ -48,6 +48,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <cstring>
 
 
 #include "ttmathtypes.h"
@@ -3041,7 +3042,8 @@ public:
 	/*!
 		a default constructor
 
-		we don't clear the table
+		~we don't clear the table ~
+		[FIX][2023/1/29] clear the table automatically.
 	*/
 	UInt()
 	{
@@ -3058,6 +3060,7 @@ public:
 					table[i] = 0xc1c1c1c1c1c1c1c1;
 		#endif
 	#endif
+		memset(table, 0, sizeof(table)); // clear table.
 	}
 
 
