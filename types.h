@@ -31,81 +31,84 @@ struct Slot0 {
     // the current tick
     int24 tick;
     // the most-recently updated index of the observations array
-    uint16 observationIndex;
+    // uint16 observationIndex;
     // the current maximum number of observations that are being stored
-    uint16 observationCardinality;
+    // uint16 observationCardinality;
     // the next maximum number of observations to store, triggered in observations.write
-    uint16 observationCardinalityNext;
+    // uint16 observationCardinalityNext;
     // the current protocol fee as a percentage of the swap fee taken on withdrawal
     // represented as an integer denominator (1/x)%
-    uint8 feeProtocol;
+    // uint8 feeProtocol;
     Slot0() { sqrtPriceX96 = 0; }
     Slot0(
         uint160 sqrtPriceX96,
-        int24 tick,
+        int24 tick
         // uint16 observationIndex,
         // uint16 observationCardinality,
         // uint16 observationCardinalityNext,
-        uint8 feeProtocol
+        // uint8 feeProtocol
     ) : sqrtPriceX96(sqrtPriceX96),
-        tick(tick),
+        tick(tick)
         // observationIndex(observationIndex),
         // observationCardinality(observationCardinality),
         // observationCardinalityNext(observationCardinalityNext),
-        feeProtocol(feeProtocol) {
+        // feeProtocol(feeProtocol)
+        {
 
     }
     friend std::istream& operator>>(std::istream& is, Slot0& slot) {
-        is >> slot.sqrtPriceX96 >> slot.tick
-            >> slot.observationIndex >> slot.observationCardinality
-            >> slot.observationCardinalityNext >> slot.feeProtocol;
+        is >> slot.sqrtPriceX96 >> slot.tick;
+            // >> slot.observationIndex >> slot.observationCardinality
+            // >> slot.observationCardinalityNext >> slot.feeProtocol;
         return is;
     }
     friend std::ostream& operator<<(std::ostream& os, const Slot0& slot) {
-        os << slot.sqrtPriceX96 << " " << slot.tick << " "
-            << slot.observationIndex << " " << slot.observationCardinality << " "
-            << slot.observationCardinalityNext << " " << slot.feeProtocol;
+        os << slot.sqrtPriceX96 << " " << slot.tick;
+            // << slot.observationIndex << " " << slot.observationCardinality << " "
+            // << slot.observationCardinalityNext << " " << slot.feeProtocol;
         return os;
     }
     void print() {
         std::cout << "---------- Slot0 INFO BELOW ------------" << std::endl
             << "sqrtPriceX96: " << sqrtPriceX96
             << "\ntick: " << tick
-            << "\nobservationIndex: " << observationIndex
-            << "\nobservationCardinality: " << observationCardinality
-            << "\nobservationCardinalityNext: " << observationCardinalityNext
-            << "\nfeeProtocol: " << feeProtocol << std::endl;
+            // << "\nobservationIndex: " << observationIndex
+            // << "\nobservationCardinality: " << observationCardinality
+            // << "\nobservationCardinalityNext: " << observationCardinalityNext
+            // << "\nfeeProtocol: " << feeProtocol
+            << std::endl;
         std::cout << "---------- Slot0 INFO ABOVE ------------" << std::endl;
     }
 };
 
 struct SwapCache {
     // the protocol fee for the input token
-    uint8 feeProtocol;
+    // uint8 feeProtocol;
     // liquidity at the beginning of the swap
     uint128 liquidityStart;
     // the timestamp of the current block
-    uint32 blockTimestamp;
+    // uint32 blockTimestamp;
     // the current value of the tick accumulator, computed only if we cross an initialized tick
-    int56 tickCumulative;
+    // int56 tickCumulative;
     // the current value of seconds per liquidity accumulator, computed only if we cross an initialized tick
-    uint160 secondsPerLiquidityCumulativeX128;
+    // uint160 secondsPerLiquidityCumulativeX128;
     // whether we've computed and cached the above two accumulators
-    bool computedLatestObservation;
+    // bool computedLatestObservation;
 
     SwapCache(
-        uint8 feeProtocol,
-        uint128 liquidityStart,
-        uint32 blockTimestamp,
-        int56 tickCumulative,
-        uint160 secondsPerLiquidityCumulativeX128,
-        bool computedLatestObservation
-    ) : feeProtocol(feeProtocol),
-        liquidityStart(liquidityStart),
-        blockTimestamp(blockTimestamp),
-        tickCumulative(tickCumulative),
-        secondsPerLiquidityCumulativeX128(secondsPerLiquidityCumulativeX128),
-        computedLatestObservation(computedLatestObservation) {
+        // uint8 feeProtocol,
+        uint128 liquidityStart
+        // uint32 blockTimestamp,
+        // int56 tickCumulative,
+        // uint160 secondsPerLiquidityCumulativeX128,
+        // bool computedLatestObservation
+    ) : // feeProtocol(feeProtocol),
+        liquidityStart(liquidityStart)
+        // blockTimestamp(blockTimestamp),
+        // tickCumulative(tickCumulative),
+        // secondsPerLiquidityCumulativeX128(secondsPerLiquidityCumulativeX128),
+        // computedLatestObservation(computedLatestObservation)
+        {
 
     }
 };

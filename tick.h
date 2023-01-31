@@ -26,6 +26,7 @@ struct Tick {
     // true iff the tick is initialized, i.e. the value is exactly equivalent to the expression liquidityGross != 0
     // these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
     bool initialized;
+    Tick() { liquidityGross = 0, liquidityNet = 0, initialized = 0; }
     friend std::istream& operator>>(std::istream& is, Tick& tick) {
         is >> tick.liquidityGross >> tick.liquidityNet
             // >> tick.feeGrowthOutside0X128 >> tick.feeGrowthOutside1X128

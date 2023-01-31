@@ -17,6 +17,7 @@ const int24 MAX_TICK = -MIN_TICK;
 /// at the given tick
 uint160 getSqrtRatioAtTick(int24 tick) {
     uint256 absTick = tick < 0 ? uint256(-int256(tick)) : uint256(int256(tick));
+    // std::cout << tick << " " << absTick << " " << uint256(MAX_TICK) << std::endl;
     require(absTick <= uint256(MAX_TICK), "T");
 
     uint256 ratio = uint256((absTick & 1) != 0 ? "340265354078544963557816517032075149313" : "340282366920938463463374607431768211456");
@@ -79,9 +80,12 @@ int24 getTickAtSqrtRatio(uint160 sqrtPriceX96) {
 
     int256 log_sqrt10001 = log_2 * uint256("255738958999603826347141"); // 128.128 number
 
-    int24 tickLow = ((log_sqrt10001 - uint256("3402992956809132418596140100660247210")) >> 128).ToUInt();
-    int24 tickHi = ((log_sqrt10001 + uint256("291339464771989622907027621153398088495")) >> 128).ToUInt();
+    int24 tickLow = ((log_sqrt10001 - int256("3402992956809132418596140100660247210")) >> 128).ToUInt();
+    int24 tickHi = ((log_sqrt10001 + int256("291339464771989622907027621153398088495")) >> 128).ToUInt();
     tickLow &= (1<<24) - 1, tickHi &= (1<<24) - 1;
+    // std::cout << tickLow << " " << tickHi << std::endl;
+    if (tickLow >= (1<<23)) tickLow = -((1<<24) - tickLow);
+    if (tickHi >= (1<<23)) tickHi = -((1<<24) - tickHi);
 
 
     // std::cout << "------ " << tickHi << " " << sqrtPriceX96 << " " << tickLow << std::endl;

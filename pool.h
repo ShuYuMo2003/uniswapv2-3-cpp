@@ -48,12 +48,12 @@ public:
     /// @inheritdoc IUniswapV3PoolState
     // Positions positions;
     // accumulated protocol fees in token0/token1 units
-    struct ProtocolFees {
-        uint128 token0;
-        uint128 token1;
-    };
+    // struct ProtocolFees {
+    //     uint128 token0;
+    //     uint128 token1;
+    // };
     /// @inheritdoc IUniswapV3PoolState
-    ProtocolFees protocolFees;
+    // ProtocolFees protocolFees;
     uint256 balance0, balance1;
     // Pool(address factory, address token0, address token1, uint24 fee, int24 tickSpacing, uint128 maxLiquidityPerTick)
     //     : factory(factory), token0(token0), token1(token1), fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
@@ -113,7 +113,8 @@ public:
         // std::tie(cardinality, cardinalityNext) = observations.initialize(_blockTimestamp());
 
         // slot0 = Slot0(sqrtPriceX96, tick, 0, cardinality, cardinalityNext, 0, true);
-        slot0 = Slot0(sqrtPriceX96, tick, 0);
+        // slot0 = Slot0(sqrtPriceX96, tick, 0);
+        slot0 = Slot0(sqrtPriceX96, tick);
     
         return tick;
         // emit Initialize(sqrtPriceX96, tick);
@@ -141,12 +142,12 @@ public:
         // slot0.unlocked = false;
 
         SwapCache cache = SwapCache(
-            zeroForOne ? (slot0Start.feeProtocol % 16) : (slot0Start.feeProtocol >> 4),
-            liquidity,
-            block.timestamp, // _blockTimestamp(),
-            0,
-            0,
-            false
+            // zeroForOne ? (slot0Start.feeProtocol % 16) : (slot0Start.feeProtocol >> 4),
+            liquidity
+            // block.timestamp, // _blockTimestamp(),
+            // 0,
+            // 0,
+            // false
         );
 
         bool exactInput = amountSpecified > 0;
@@ -195,6 +196,7 @@ public:
             // std::cout << "==== " << state.sqrtPriceX96 << " " << ((zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
             //         ? sqrtPriceLimitX96
             //         : step.sqrtPriceNextX96) << " " << state.liquidity << " " << state.amountSpecifiedRemaining << " " << fee << std::endl;
+            // if (state.liquidity == "353994491063406687") state.liquidity = "353265040822481228";
             std::tie(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = computeSwapStep(
                 state.sqrtPriceX96,
                 (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
@@ -214,12 +216,14 @@ public:
                 state.amountCalculated = state.amountCalculated + int256(step.amountIn + step.feeAmount);
             }
 
+            // std::cout << state.amountSpecifiedRemaining << " " << state.amountCalculated << std::endl;
+
             // if the protocol fee is on, calculate how much is owed, decrement feeAmount, and increment protocolFee
-            if (cache.feeProtocol > 0) {
-                uint256 delta = step.feeAmount / cache.feeProtocol;
-                step.feeAmount -= delta;
-                // state.protocolFee += uint128(delta);
-            }
+            // if (cache.feeProtocol > 0) {
+            //     uint256 delta = step.feeAmount / cache.feeProtocol;
+            //     step.feeAmount -= delta;
+            //     state.protocolFee += uint128(delta);
+            // }
 
             // update global fee tracker
             // if (state.liquidity > 0)
@@ -527,12 +531,22 @@ public:
             ModifyPositionParams(recipient, tickLower, tickUpper, int256(amount))
         );
 
+        // int24 tickNext;
+        // bool initialized;
+        // std::tie(tickNext, initialized) = tickBitmap.nextInitializedTickWithinOneWord(
+        //     slot0.tick,
+        //     tickSpacing,
+        //     0
+        // );
+        // uint160 sqrtPriceNextX96 = getSqrtRatioAtTick(tickNext);
+        // std::cout << tickNext << " " << initialized << " " << sqrtPriceNextX96 << std::endl;
+
         uint256 amount0 = uint256(amount0Int), amount1 = uint256(amount1Int);
 
-        uint256 balance0Before;
-        uint256 balance1Before;
-        if (amount0 > 0) balance0Before = balance0;
-        if (amount1 > 0) balance1Before = balance1;
+        // uint256 balance0Before;
+        // uint256 balance1Before;
+        // if (amount0 > 0) balance0Before = balance0;
+        // if (amount1 > 0) balance1Before = balance1;
         // IUniswapV3MintCallback(msg.sender).uniswapV3MintCallback(amount0, amount1, data);
         // if (amount0 > 0) require(balance0Before + amount0 <= balance0, "M0");
         // if (amount1 > 0) require(balance1Before + amount1 <= balance1, "M1");

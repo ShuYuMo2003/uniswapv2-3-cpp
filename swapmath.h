@@ -30,10 +30,14 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
     uint256 amountIn, amountOut, feeAmount;
 
     if (exactIn) {
-        uint256 amountRemainingLessFee = mulDiv(uint256(amountRemaining) , uint24(1e6) - feePips, int(1e6));
+        // std::cout << uint256(amountRemaining) << " " << uint24(1e6) - feePips << " " << uint24(1e6) << std::endl;
+        uint256 amountRemainingLessFee = mulDiv(uint256(amountRemaining) , uint24(1e6) - feePips, uint24(1e6));
+        // std::cout << amountRemainingLessFee << std::endl;
+        // std::cout << zeroForOne << " " << sqrtRatioCurrentX96 << " " << sqrtRatioTargetX96 << " " << liquidity << std::endl;
         amountIn = zeroForOne
             ? getAmount0Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, true)
             : getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, true);
+        // std::cout << amountIn << std::endl;
         if (amountRemainingLessFee >= amountIn) sqrtRatioNextX96 = sqrtRatioTargetX96;
         else
             sqrtRatioNextX96 = getNextSqrtPriceFromInput(
@@ -55,6 +59,7 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
                 zeroForOne
             );
     }
+    // std::cout << sqrtRatioNextX96 << std::endl;
 
     bool max = sqrtRatioTargetX96 == sqrtRatioNextX96;
 

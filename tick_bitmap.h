@@ -5,13 +5,13 @@
 
 #include "types.h"
 #include "bitmath.h"
+#include "util.h"
 
 class TickBitmap {
     std::map<int16, uint256> data;
 public:
     std::pair<int16, uint8> position(int24 tick) {
-        return std::make_pair(int16(tick >> 8), uint8(tick - (uint16(tick >> 8) * 256)));
-        // std::cerr << int16(tick >> 8) << " " << uint8(tick % 256) << std::endl;
+        return std::make_pair(int16(tick >> 8), uint8(tick - (int16(tick >> 8) * 256)));
     }
     /// @notice Flips the initialized state for a given tick from false to true, or vice versa
     /// @param self The mapping in which to flip the tick
@@ -21,11 +21,16 @@ public:
         int24 tick,
         int24 tickSpacing
     ) {
+        // std::cout << tick << " " << tickSpacing << " " << tick / tickSpacing << std::endl;
         require(tick % tickSpacing == 0); // ensure that the tick is spaced
         int16 wordPos; uint8 bitPos;
         std::tie(wordPos, bitPos) = position(tick / tickSpacing);
+        // std::cout << wordPos << " " << bitPos << std::endl;
         uint256 mask = uint256(1) << bitPos;
+        // data[wordPos].PrintTable(std::cout);
+        if (data.find(wordPos) == data.end()) data[wordPos] = 0;
         data[wordPos] ^= mask;
+        // data[wordPos].PrintTable(std::cout);
     }
     std::pair<int24, bool> nextInitializedTickWithinOneWord(
         int24 tick,
@@ -41,7 +46,9 @@ public:
             // std::cout << wordPos << " " << bitPos << std::endl;
             // all the 1s at or to the right of the current bitPos
             uint256 mask = (uint256(1) << bitPos) - 1 + (uint256(1) << bitPos);
+            if (data.find(wordPos) == data.end()) data[wordPos] = 0;
             uint256 masked = data[wordPos] & mask;
+            // mask.PrintTable(std::cout);
 
             // if there are no initialized ticks to the right of or at the current tick, return rightmost in the word
             bool initialized = masked != 0;
@@ -55,6 +62,7 @@ public:
             auto [wordPos, bitPos] = position(compressed + 1);
             // all the 1s at or to the left of the bitPos
             uint256 mask = ~((uint256(1) << bitPos) - 1);
+            if (data.find(wordPos) == data.end()) data[wordPos] = 0;
             uint256 masked = data[wordPos] & mask;
 
             // if there are no initialized ticks to the left of the current tick, return leftmost in the word
