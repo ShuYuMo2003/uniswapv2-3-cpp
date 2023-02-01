@@ -9,30 +9,32 @@ long long getTimeNs() {
     return clock();
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     int Not = 0;
     std::ios::sync_with_stdio(false);
     freopen("pool_events_test", "r", stdin);
     int fee, tickSpacing;
     uint256 maxLiquidityPerTick;
     std::cin >> fee >> tickSpacing >> maxLiquidityPerTick;
-    Pool pool(
-        // "0x1f98431c8ad98523631ae4a59f267346ea31f984",
-        // "0x2791bca1f2de4661ed88a30c99a7a9449aa84174",
-        // "0x7ceb23fd6bc0add59e62ac25578270cff1b9f619",
-        fee,
-        tickSpacing,
-        maxLiquidityPerTick
-    );
+    Pool pool;
+    int stBlock = 0;
+    if (argc > 1) {
+        stBlock = atoi(argv[1]);
+        std::ifstream fin(argv[2]);
+        fin >> pool;
+        fin.close();
+    } else {
+        pool = Pool(fee, tickSpacing, maxLiquidityPerTick);
+    }
     // pool.save("tmp0");
     uint256 ruamount0, ruamount1;
     int256 ramount0, ramount1;
     std::string met, price, sender, amount, amount0, amount1, liquidity;
     int cnt[4] = {0};
     long long timeCnt[4] = {0};
-    int tick, tickLower, tickUpper, zeroToOne, t = 0;
+    int tick, tickLower, tickUpper, zeroToOne, t = 0, blockNum;
     while (std::cin >> met) {
-        std::cerr << "Got contract = " << met << " No." << (++Not) << std::endl;
+        // std::cerr << "Got contract = " << met << " No." << (++Not) << std::endl;
         Pool back = pool;
         // Pool pool("tmp" + std::to_string(t)), back = pool;
         // pool.save("tmpread" + std::to_string(t));
@@ -42,8 +44,12 @@ int main() {
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;
         else if (met == "burn") std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
+        std::cin >> blockNum;
         // int lim = 1268728;
-        // if (t < lim) continue;
+        if (blockNum <= stBlock) {
+            if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
+            continue;
+        }
         // else if (t == lim) { pool = Pool("tmp" + std::to_string(t)); continue; }
         // std::cout << t << " " << met << std::endl;
         if (met == "initialize") {
@@ -103,8 +109,8 @@ int main() {
             // std::cout << tickLower << " " << tickUpper << " " << amount << std::endl;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
-            // assert(ruamount0 == amount0 && ruamount1 == amount1);
-            // assert(dis(ruamount0, amount0) <= 100 && dis(ruamount1, amount1) < 100);
+            assert(ruamount0 == amount0 && ruamount1 == amount1);
+            assert(dis(ruamount0, amount0) <= 100 && dis(ruamount1, amount1) < 100);
             timeCnt[3] += getTimeNs() - start;
         } else if (met == "collect") {
             std::cin >> tickLower >> tickUpper >> amount0 >> amount1;
@@ -121,6 +127,7 @@ int main() {
         // pool.slot0.sqrtPriceX96.PrintTable(std::cout);
         // std::cout << std::endl;
         // std::cout << "liquidity: " << pool.liquidity << std::endl;
+        if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
     }
     for (int i = 0; i < 4; ++i) {
         std::cout << i << " " << cnt[i] << " " << timeCnt[i] << std::endl;

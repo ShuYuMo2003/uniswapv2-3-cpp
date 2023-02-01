@@ -127,6 +127,7 @@ struct Ticks {
 
         uint128 liquidityGrossBefore = info.liquidityGross;
         uint128 liquidityGrossAfter = addDelta(liquidityGrossBefore, liquidityDelta);
+        // std::cout << liquidityGrossBefore << " " << liquidityDelta << " " << liquidityGrossAfter << " " << maxLiquidity << std::endl;
 
         require(liquidityGrossAfter <= maxLiquidity, "LO");
 

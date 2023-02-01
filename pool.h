@@ -60,6 +60,7 @@ public:
     //     // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = 
     //     liquidity = 0;
     // }
+    Pool() {}
     Pool(uint24 fee, int24 tickSpacing, uint128 maxLiquidityPerTick)
         : fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
         // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = 
@@ -87,6 +88,7 @@ public:
         fout.close();
     }
     void copyFrom(const Pool &o) {
+        fee = o.fee, tickSpacing = o.tickSpacing, maxLiquidityPerTick = o.maxLiquidityPerTick;
         slot0 = o.slot0, liquidity = o.liquidity, ticks = o.ticks, tickBitmap = o.tickBitmap;
         // , positions = o.positions;
     }
@@ -176,8 +178,8 @@ public:
                 tickSpacing,
                 zeroForOne
             );
-            // assert(step.initialized == true);
             // std::cout << step.tickNext << " " << step.initialized << std::endl;
+            // assert(step.initialized == true);
 
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
             if (step.tickNext < MIN_TICK) {
