@@ -5,3 +5,6 @@ v3_pool_state_from_events
 a
 qaq.exe
 pool_state
+POOL_STATE_*
+events
+POOL_*_STATE

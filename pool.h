@@ -57,13 +57,13 @@ public:
     uint256 balance0, balance1;
     // Pool(address factory, address token0, address token1, uint24 fee, int24 tickSpacing, uint128 maxLiquidityPerTick)
     //     : factory(factory), token0(token0), token1(token1), fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
-    //     // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = 
+    //     // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 =
     //     liquidity = 0;
     // }
     Pool() {}
     Pool(uint24 fee, int24 tickSpacing, uint128 maxLiquidityPerTick)
         : fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
-        // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 = 
+        // feeGrowthGlobal0X128 = feeGrowthGlobal1X128 =
         liquidity = 0;
     }
     friend std::istream& operator>>(std::istream& is, Pool& pool) {
@@ -117,7 +117,7 @@ public:
         // slot0 = Slot0(sqrtPriceX96, tick, 0, cardinality, cardinalityNext, 0, true);
         // slot0 = Slot0(sqrtPriceX96, tick, 0);
         slot0 = Slot0(sqrtPriceX96, tick);
-    
+
         return tick;
         // emit Initialize(sqrtPriceX96, tick);
     }
@@ -126,7 +126,8 @@ public:
         bool zeroForOne,
         int256 amountSpecified,
         uint160 sqrtPriceLimitX96,
-        bytes32 data)
+        bytes32 data,
+        bool effect = true)
     {
         require(amountSpecified != 0, "AS");
 
@@ -170,7 +171,7 @@ public:
 
             step.sqrtPriceStartX96 = state.sqrtPriceX96;
 
-            // std::cout << "------- nextInitializedTickWithinOneWord params -------\n" 
+            // std::cout << "------- nextInitializedTickWithinOneWord params -------\n"
             //     << state.tick << " " << tickSpacing << " " << zeroForOne
             //     << "\n------- nextInitializedTickWithinOneWord params end -------\n";
             std::tie(step.tickNext, step.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
@@ -277,28 +278,32 @@ public:
         // std::cout << "---- " << state.tick << " " << slot0Start.tick << std::endl;
 
         // update tick and write an oracle entry if the tick change
-        if (state.tick != slot0Start.tick) {
-            // uint16 observationIndex, observationCardinality;
-            // std::tie(observationIndex, observationCardinality) = observations.write(
-            //     slot0Start.observationIndex,
-            //     cache.blockTimestamp,
-            //     slot0Start.tick,
-            //     cache.liquidityStart,
-            //     slot0Start.observationCardinality,
-            //     slot0Start.observationCardinalityNext
-            // );
-            slot0.sqrtPriceX96 = state.sqrtPriceX96;
-            slot0.tick = state.tick;
-            // slot0.observationIndex = observationIndex;
-            // slot0.observationCardinality = observationCardinality;
-        } else {
-            // otherwise just update the price
-            slot0.sqrtPriceX96 = state.sqrtPriceX96;
-        }
-        // std::cout << "---- " << state.tick << " " << slot0.tick << std::endl;
+        if(effect) {
+            if (state.tick != slot0Start.tick) {
+                // uint16 observationIndex, observationCardinality;
+                // std::tie(observationIndex, observationCardinality) = observations.write(
+                //     slot0Start.observationIndex,
+                //     cache.blockTimestamp,
+                //     slot0Start.tick,
+                //     cache.liquidityStart,
+                //     slot0Start.observationCardinality,
+                //     slot0Start.observationCardinalityNext
+                // );
+                slot0.sqrtPriceX96 = state.sqrtPriceX96;
+                slot0.tick = state.tick;
+                // slot0.observationIndex = observationIndex;
+                // slot0.observationCardinality = observationCardinality;
+            } else {
+                // otherwise just update the price
+                slot0.sqrtPriceX96 = state.sqrtPriceX96;
+            }
 
-        // update liquidity if it changed
-        if (cache.liquidityStart != state.liquidity) liquidity = state.liquidity;
+            // std::cout << "---- " << state.tick << " " << slot0.tick << std::endl;
+
+            // update liquidity if it changed
+            if (cache.liquidityStart != state.liquidity) liquidity = state.liquidity;
+        }
+
 
         // update fee growth global and, if necessary, protocol fees
         // overflow is acceptable, protocol has to withdraw before it hits type(uint128).max fees
@@ -480,7 +485,7 @@ public:
                 true,
                 maxLiquidityPerTick
             );
-            
+
             // std::cout << flippedLower << " " << flippedUpper << std::endl;
 
             if (flippedLower) {

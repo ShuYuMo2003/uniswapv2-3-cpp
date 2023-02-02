@@ -1,4 +1,6 @@
 #include "pool.h"
+#include <cstdlib>
+#include <cassert>
 
 uint256 dis(uint256 a, uint256 b) {
     if (a < b) std::swap(a, b);
@@ -7,6 +9,27 @@ uint256 dis(uint256 a, uint256 b) {
 
 long long getTimeNs() {
     return clock();
+}
+
+std::pair<uint256, uint256> swapWithCheck(
+    Pool & pool,
+    address a,
+    bool b,
+    int256 c,
+    uint160 d,
+    bytes32 e)
+{
+    pool.save("POOL_STATE_BEFORE");
+    auto ret0 = pool.swap(a, b, c, d, e, false);
+    pool.save("POOL_STATE_AFTER");
+
+    assert(system("diff POOL_STATE_BEFORE POOL_STATE_AFTER") == 0);
+
+    auto ret1 = pool.swap(a, b, c, d, e, true);
+
+    assert(ret0 == ret1);
+    // std::cerr << "swap " << b << "ok" << std::endl;
+    return ret0;
 }
 
 int main(int argc, char *argv[]) {
@@ -44,12 +67,12 @@ int main(int argc, char *argv[]) {
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;
         else if (met == "burn") std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
-        std::cin >> blockNum;
+        // std::cin >> blockNum;
         // int lim = 1268728;
-        if (blockNum <= stBlock) {
-            if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
-            continue;
-        }
+        // if (blockNum <= stBlock) {
+        //     if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
+        //     continue;
+        // }
         // else if (t == lim) { pool = Pool("tmp" + std::to_string(t)); continue; }
         // std::cout << t << " " << met << std::endl;
         if (met == "initialize") {
@@ -77,13 +100,13 @@ int main(int argc, char *argv[]) {
                 if (i) pool = back;
                 // std::cout << "================= Swap attempt " << (i + 1) << "==================\n";
                 long long start = getTimeNs();
-                if (i == 0) std::tie(ramount0, ramount1) = pool.swap(sender, zeroToOne, amount, _price, "");
+                if (i == 0) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount, _price, "");
                 else if (i == 1) {
                     std::string k = zeroToOne ? amount1 : amount0;
                     if (k == "0") continue;
-                    std::tie(ramount0, ramount1) = pool.swap(sender, zeroToOne, k, _price, "");
+                    std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, k, _price, "");
                 }
-                else if (i == 2) std::tie(ramount0, ramount1) = pool.swap(sender, zeroToOne, amount + "0", price, "");
+                else if (i == 2) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount + "0", price, "");
                 timeCnt[2] += getTimeNs() - start;
                 // std::cout << "amount0: " << ramount0 << " " << amount0 << std::endl;
                 // std::cout << "amount1: " << ramount1 << " " << amount1 << std::endl;
