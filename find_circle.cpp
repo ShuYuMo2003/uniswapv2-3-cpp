@@ -8,10 +8,8 @@ struct V3Pool {
         return is >> pool.pool;
     }
     uint256 swap(bool zeroToOne, uint256 amountIn) {
-        Pool back = pool;
-        auto [realIn, amountOut] = pool.swap("0x0", zeroToOne, amountIn, zeroToOne ? "4295128740" : "1461446703485210103287273052203988822378723970341", "");
+        auto [realIn, amountOut] = pool.swap("0x0", zeroToOne, amountIn, zeroToOne ? "4295128740" : "1461446703485210103287273052203988822378723970341", "", false);
         // ASSERT(amountIn == realIn, "amount");
-        pool = back;
         return amountOut;
     }
 };
