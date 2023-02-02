@@ -67,12 +67,12 @@ int main(int argc, char *argv[]) {
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;
         else if (met == "burn") std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
-        // std::cin >> blockNum;
+        std::cin >> blockNum;
         // int lim = 1268728;
-        // if (blockNum <= stBlock) {
-        //     if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
-        //     continue;
-        // }
+        if (blockNum <= stBlock) {
+            if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
+            continue;
+        }
         // else if (t == lim) { pool = Pool("tmp" + std::to_string(t)); continue; }
         // std::cout << t << " " << met << std::endl;
         if (met == "initialize") {
