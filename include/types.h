@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "ttmathint.h"
-#include "ttmathuint.h"
+#include "../lib/ttmath/ttmathint.h"
+#include "../lib/ttmath/ttmathuint.h"
 
 typedef unsigned int uint;
 typedef uint uint8;
