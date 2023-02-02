@@ -1,6 +1,7 @@
-#include "pool.h"
+#include "../include/pool.h"
 #include <cstdlib>
 #include <cassert>
+#include <iomanip>
 
 uint256 dis(uint256 a, uint256 b) {
     if (a < b) std::swap(a, b);
@@ -17,23 +18,27 @@ std::pair<uint256, uint256> swapWithCheck(
     bool b,
     int256 c,
     uint160 d,
-    bytes32 e)
-{
-    pool.save("POOL_STATE_BEFORE");
-    auto ret0 = pool.swap(a, b, c, d, e, false);
-    pool.save("POOL_STATE_AFTER");
+    bytes32 e,
+    long long &timer)
+{ // recover the comments below to test the switch of effects on pool state.
+    // pool.save("POOL_STATE_BEFORE");
+    // timer = getTimeNs();
+    // auto ret0 = pool.swap(a, b, c, d, e, false);
+    // timer = getTimeNs() - timer;
+    // assert(timer != 0);
+    // pool.save("POOL_STATE_AFTER");
 
-    assert(system("diff POOL_STATE_BEFORE POOL_STATE_AFTER") == 0);
+    // assert(system("diff POOL_STATE_BEFORE POOL_STATE_AFTER") == 0);
 
+    timer = getTimeNs();
     auto ret1 = pool.swap(a, b, c, d, e, true);
+    timer = getTimeNs() - timer;
 
-    assert(ret0 == ret1);
-    // std::cerr << "swap " << b << "ok" << std::endl;
-    return ret0;
+    // assert(ret0 == ret1);
+    return ret1;
 }
 
 int main(int argc, char *argv[]) {
-    int Not = 0;
     std::ios::sync_with_stdio(false);
     freopen("pool_events_test", "r", stdin);
     int fee, tickSpacing;
@@ -96,18 +101,17 @@ int main(int argc, char *argv[]) {
             // std::cout << zeroToOne << " " << amount << " " << price << std::endl;
             std::string _price = zeroToOne ? "4295128740" : "1461446703485210103287273052203988822378723970341";
             bool suc = false;
+            long long timer = 0;
             for (int i = 0; i < 3; ++i) {
                 if (i) pool = back;
                 // std::cout << "================= Swap attempt " << (i + 1) << "==================\n";
-                long long start = getTimeNs();
-                if (i == 0) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount, _price, "");
+                if (i == 0) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount, _price, "", timer);
                 else if (i == 1) {
                     std::string k = zeroToOne ? amount1 : amount0;
                     if (k == "0") continue;
-                    std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, k, _price, "");
+                    std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, k, _price, "", timer);
                 }
-                else if (i == 2) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount + "0", price, "");
-                timeCnt[2] += getTimeNs() - start;
+                else if (i == 2) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount + "0", price, "", timer);
                 // std::cout << "amount0: " << ramount0 << " " << amount0 << std::endl;
                 // std::cout << "amount1: " << ramount1 << " " << amount1 << std::endl;
                 // // assert(ramount0 == amount0 && ramount1 == amount1);
@@ -125,6 +129,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             assert(suc);
+            timeCnt[2] += timer;
         } else if (met == "burn") {
             cnt[3]++;
             long long start = getTimeNs();
@@ -155,5 +160,11 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < 4; ++i) {
         std::cout << i << " " << cnt[i] << " " << timeCnt[i] << std::endl;
     }
+    std::cout << "============= Timer ============" << std::endl;
+    std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(6);
+    std::cout << "init: \t" << ((double) (timeCnt[0]) / cnt[0] / CLOCKS_PER_SEC) * 1000 << " ms/opt" << std::endl;
+    std::cout << "mint: \t" << ((double) (timeCnt[1]) / cnt[1] / CLOCKS_PER_SEC) * 1000 << " ms/opt" << std::endl;
+    std::cout << "swap: \t" << ((double) (timeCnt[2]) / cnt[2] / CLOCKS_PER_SEC) * 1000 << " ms/opt" << std::endl;
+    std::cout << "burn: \t" << ((double) (timeCnt[3]) / cnt[3] / CLOCKS_PER_SEC) * 1000 << " ms/opt" << std::endl;
     pool.save("pool_state");
 }

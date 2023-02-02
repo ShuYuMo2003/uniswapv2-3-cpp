@@ -1,4 +1,4 @@
-#include "sqrtpricemath.h"
+#include "../include/sqrtpricemath.h"
 
 int main() {
     /*

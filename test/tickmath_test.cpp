@@ -1,4 +1,4 @@
-#include "tickmath.h"
+#include "../include/tickmath.h"
 
 int main() {
     /*

@@ -1,4 +1,4 @@
-#include "fullmath.h"
+#include "../include/fullmath.h"
 
 int main() {
     /*

@@ -14,7 +14,7 @@
 #   define ASSERT(condition, message) do { } while (false)
 #endif
 
-#include<cstring>
+#include <cstring>
 #include <cassert>
 
 void require(bool condition, std::string msg = "") {
