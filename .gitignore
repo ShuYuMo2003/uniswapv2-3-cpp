@@ -1,8 +1,10 @@
 pool_events_test
+pool_events_test*
 out
 .DS_Store
 v3_pool_state_from_events
 a
+a.exe
 qaq.exe
 pool_state
 POOL_STATE_*

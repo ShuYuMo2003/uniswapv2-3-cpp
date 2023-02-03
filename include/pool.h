@@ -44,7 +44,10 @@ public:
     /// @inheritdoc IUniswapV3PoolState
     Ticks ticks;
     /// @inheritdoc IUniswapV3PoolState
-    TickBitmap tickBitmap;
+
+    // If some error occurs because of bitmap, just replace the codes below to `TickBitmap tickBitmap;`
+    TickBitMapBaseOnSet tickBitmap;
+
     /// @inheritdoc IUniswapV3PoolState
     // Positions positions;
     // accumulated protocol fees in token0/token1 units

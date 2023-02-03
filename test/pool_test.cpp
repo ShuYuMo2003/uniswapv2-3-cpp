@@ -20,7 +20,7 @@ std::pair<uint256, uint256> swapWithCheck(
     uint160 d,
     bytes32 e,
     long long &timer)
-{ // recover the comments below to test the switch of effects on pool state.
+{ // recover the comments below to test the switch of the effects on pool state.
     // pool.save("POOL_STATE_BEFORE");
     // timer = getTimeNs();
     // auto ret0 = pool.swap(a, b, c, d, e, false);
@@ -68,6 +68,7 @@ int main(int argc, char *argv[]) {
         // pool.save("tmpread" + std::to_string(t));
         std::cin >> sender; msg.sender.FromString(sender);
         ++t;
+        if(t % 1000 == 0) std::cerr << "\rto handle " << t;
         if (met == "initialize") std::cin >> price >> tick;
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;
@@ -157,6 +158,7 @@ int main(int argc, char *argv[]) {
         // std::cout << "liquidity: " << pool.liquidity << std::endl;
         if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
     }
+    std::cout << "\n\n" << std::endl;
     for (int i = 0; i < 4; ++i) {
         std::cout << i << " " << cnt[i] << " " << timeCnt[i] << std::endl;
     }
