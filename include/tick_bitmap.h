@@ -259,6 +259,7 @@ public:
         } else {
             // start from the word of the next tick, since the current tick state doesn't matter
             auto [wordPos, bitPos] = position(compressed + 1);
+            // std::cout << compressed + 1 << " " << wordPos << " " << bitPos << std::endl;
             // all the 1s at or to the left of the bitPos
             uint256 mask = ~((uint256(1) << bitPos) - 1);
             if (data.find(wordPos) == data.end()) data[wordPos] = 0;
@@ -267,6 +268,7 @@ public:
             // if there are no initialized ticks to the left of the current tick, return leftmost in the word
             bool initialized = masked != 0;
             // overflow/underflow is possible, but prevented externally by limiting both tickSpacing and tick
+            // std::cout << masked << std::endl;
             int24 next = initialized
                 ? (compressed + 1 + int24(int24(leastSignificantBit(masked)) - int24(bitPos))) * tickSpacing
                 : (compressed + 1 + int24(((1<<8)-1) - int24(bitPos))) * tickSpacing;
@@ -289,8 +291,8 @@ public:
         int num; is >> num;
         for (int i = 0; i < num; ++i) {
             long long x; is >> x;
-            // std::cerr << "??? " << x << std::endl;
-            tickBitmap.data[x>>8] |= uint256(1)<<(abs(x)%256);
+            auto [wordPos, bitPos] = tickBitmap.position(x);
+            tickBitmap.data[wordPos] |= uint256(1)<<(bitPos);
         }
         return is;
     }
