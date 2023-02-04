@@ -1126,6 +1126,12 @@ public:
 	{
 	}
 
+	double ToDouble() {
+		uint sign = IsSign();
+		Int<value_size> temp(*this); temp.Abs();
+		double ret = temp.UInt<value_size>::ToDouble();
+		return sign ? (-ret) : ret;
+	}
 
 	/*!
 		this method returns the lowest value from table with a sign

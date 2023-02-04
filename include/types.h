@@ -15,7 +15,7 @@ typedef ttmath::UInt<2>   uint64;
 typedef ttmath::UInt<4>   uint128;
 typedef ttmath::UInt<5>   uint160;
 typedef ttmath::UInt<8>   uint256;
-typedef ttmath::UInt<512> uint512;
+typedef ttmath::UInt<16>  uint512;
 typedef ttmath::UInt<32>  address;
 typedef int int16;
 typedef int int24;

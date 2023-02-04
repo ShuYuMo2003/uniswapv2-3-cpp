@@ -49,6 +49,7 @@
 #include <iostream>
 #include <iomanip>
 #include <cstring>
+#include <cassert>
 
 
 #include "ttmathtypes.h"
@@ -3096,6 +3097,45 @@ public:
 	~UInt()
 	{
 	}
+
+	double ToDouble(){
+		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
+		unsigned long long mantissa = 0, exponent = 0;
+		uint table_id, index;
+		FindLeadingBit(table_id, index);
+
+		exponent = index + table_id * TTMATH_BITS_PER_UINT + 1023;
+
+		for(uint i = 0; i <= table_id; i++) {
+			uint width = (i == table_id ? index : TTMATH_BITS_PER_UINT);
+			uint bits = table[i] & ((1LL << width) - 1);
+			mantissa >>= width;
+			mantissa |= (bits << (TTMATH_BITS_PER_UINT - width));
+		}
+
+		mantissa >>= (64 - 52); // Extra bits have to be ignore.
+
+		unsigned long long result = 0;
+		result = (exponent << 52) | mantissa;
+		return *(double*)(&result);
+	}
+
+	double X96ToDouble() {
+		assert(value_size == 5); // For `uint160` only.
+
+		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
+		double pre_value = ToDouble();
+
+		unsigned long long value = *(unsigned long long*)(&pre_value);
+		unsigned long long exponent = (((value >> 52) & ((1ull << 11) - 1)) - 96);
+
+		value &= ( ~(((1ull << 11) - 1) << 52) );
+		value |= (exponent << 52);
+
+		return *(double*)(&value);
+	}
+
+	operator double(){ return ToDouble(); }
 
 
 	/*!
