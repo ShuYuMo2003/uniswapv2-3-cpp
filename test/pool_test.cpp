@@ -40,7 +40,7 @@ std::pair<uint256, uint256> swapWithCheck(
 
 int main(int argc, char *argv[]) {
     std::ios::sync_with_stdio(false);
-    freopen("pool_events_test", "r", stdin);
+    freopen("pool_events_test_big", "r", stdin);
     int fee, tickSpacing;
     uint256 maxLiquidityPerTick;
     std::cin >> fee >> tickSpacing >> maxLiquidityPerTick;
@@ -68,17 +68,14 @@ int main(int argc, char *argv[]) {
         // pool.save("tmpread" + std::to_string(t));
         std::cin >> sender; msg.sender.FromString(sender);
         ++t;
-        if(t % 1000 == 0) std::cerr << "\rto handle " << t;
+        if(t % 3000 == 0) std::cerr << "\rto handle " << t;
         if (met == "initialize") std::cin >> price >> tick;
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;
         else if (met == "burn") std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
         std::cin >> blockNum;
         // int lim = 1268728;
-        if (blockNum <= stBlock) {
-            if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
-            continue;
-        }
+        if (blockNum <= stBlock) continue;
         // else if (t == lim) { pool = Pool("tmp" + std::to_string(t)); continue; }
         // std::cout << t << " " << met << std::endl;
         if (met == "initialize") {
@@ -156,7 +153,6 @@ int main(int argc, char *argv[]) {
         // pool.slot0.sqrtPriceX96.PrintTable(std::cout);
         // std::cout << std::endl;
         // std::cout << "liquidity: " << pool.liquidity << std::endl;
-        if (t % 200000 == 0) std::cout << t << " events handled." << std::endl;
     }
     std::cout << "\n\n" << std::endl;
     for (int i = 0; i < 4; ++i) {
@@ -164,9 +160,12 @@ int main(int argc, char *argv[]) {
     }
     std::cout << "============= Timer ============" << std::endl;
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(6);
-    std::cout << "init: \t" << ((double) (timeCnt[0]) / cnt[0] / CLOCKS_PER_SEC) * 1000 << " ms/opt" << std::endl;
-    std::cout << "mint: \t" << ((double) (timeCnt[1]) / cnt[1] / CLOCKS_PER_SEC) * 1000 << " ms/opt" << std::endl;
-    std::cout << "swap: \t" << ((double) (timeCnt[2]) / cnt[2] / CLOCKS_PER_SEC) * 1000 << " ms/opt" << std::endl;
-    std::cout << "burn: \t" << ((double) (timeCnt[3]) / cnt[3] / CLOCKS_PER_SEC) * 1000 << " ms/opt" << std::endl;
+    std::cout << "init: \t" << ((double) (timeCnt[0]) / cnt[0] / CLOCKS_PER_SEC) * 1000 * 1000 * 1000 << " ns/opt" << std::endl;
+    std::cout << "mint: \t" << ((double) (timeCnt[1]) / cnt[1] / CLOCKS_PER_SEC) * 1000 * 1000 * 1000 << " ns/opt" << std::endl;
+    std::cout << "swap: \t" << ((double) (timeCnt[2]) / cnt[2] / CLOCKS_PER_SEC) * 1000 * 1000 * 1000 << " ns/opt" << std::endl;
+    std::cout << "burn: \t" << ((double) (timeCnt[3]) / cnt[3] / CLOCKS_PER_SEC) * 1000 * 1000 * 1000 << " ns/opt" << std::endl;
+
+    // std::cerr << "cache rate = " << pool.tickBitmap.cacheRate() << " " << pool.tickBitmap.cacheMiss << " " << pool.tickBitmap.cacheTotal<< std::endl;
+
     pool.save("pool_state");
 }

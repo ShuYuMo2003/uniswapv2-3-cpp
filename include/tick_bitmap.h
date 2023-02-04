@@ -7,6 +7,128 @@
 #include "bitmath.h"
 #include "util.h"
 #include <set>
+#include <vector>
+#include <algorithm>
+
+
+#define GWordPos(a) ((a) >> 8)
+#define fetchLowerBound(a) (a << 8)
+#define fetchUpperBound(a) ((a << 8) | 255)
+
+// #define DEBUG
+// have the same API and behaviour with TickBitmap but based on a STL, `std::set`.
+class TickBitMapBaseOnVector {
+public:
+    // To save initialized `tick` (notice: tick is real_tick_No. / tickSpacing)
+    std::vector<int24> data;
+    std::vector<int24>::iterator cache;
+    bool validCache;
+#ifdef DEBUG
+    int cacheMiss;
+    int cacheTotal;
+#endif
+    TickBitMapBaseOnVector() {
+        data.clear();
+        validCache = false;
+    }
+    std::pair<bool, std::vector<int24>::iterator> isExist(int24 tick) {
+        auto target = lower_bound(data.begin(), data.end(), tick);
+        return make_pair(target != data.end() && *target == tick, target);
+    }
+    std::pair<int16, int16> position(int24 tick) {
+        return std::make_pair(int16(tick >> 8), uint8(tick - (int16(tick >> 8) * 256)));
+    }
+    void flipTick(
+        int24 tick,
+        int24 tickSpacing
+    ) {
+        require(tick % tickSpacing == 0);
+        validCache = false;
+        // transform the real tick into the image of the tick in the tick space.
+        tick /= tickSpacing;
+        auto [exist, target] = isExist(tick);
+        if(exist) data.erase(target);
+        else      data.insert(target, tick);
+    }
+    bool reachBound(std::vector<int24>::iterator o) { return o == data.end() || o == data.begin(); }
+    std::pair<bool, std::vector<int24>::iterator> examCache(int24 tick, bool lte) {
+        if(!validCache || reachBound(cache) || reachBound(cache + 1))
+            return std::make_pair(false, cache);
+
+        if(lte){ // upper_bound
+            return std::make_pair(*(cache - 1) <= tick && *cache >  tick,
+                                    cache);
+        } else { // lower_bound
+            ++cache;
+            return std::make_pair(*(cache - 1) < tick && *cache >= tick,
+                                    cache);
+        }
+    }
+    std::pair<int24, bool> nextInitializedTickWithinOneWord(
+        int24 tick,
+        int24 tickSpace,
+        bool lte
+    ) {
+        // transform the real tick into the image of the tick in the tick space.
+        if(tick < 0 && tick % tickSpace != 0) {
+            // round towards negative infinity
+            tick = tick / tickSpace - 1;
+        } else {
+            tick /= tickSpace;
+        }
+        std::pair<int24, bool> result;
+        if(lte) { // less or equal.
+            auto [wordPos, bitPos] = position(tick);
+            auto [useCache, next] = examCache(tick, lte);
+#ifdef DEBUG
+            cacheMiss += !useCache;
+            cacheTotal+= 1;
+#endif
+            if(!useCache)
+                cache = (next = upper_bound(data.begin(), data.end(), tick));
+
+            result = (next == data.begin() || GWordPos(*(next - 1)) != wordPos)
+                ? std::make_pair(fetchLowerBound(wordPos) * tickSpace, false)
+                : std::make_pair(*(next - 1) * tickSpace, true);
+        } else { // upper
+            tick += 1;
+            auto [wordPos, bitPos] = position(tick);
+            auto [useCache, next] = examCache(tick, lte);
+#ifdef DEBUG
+            cacheMiss += !useCache;
+            cacheTotal+= 1;
+#endif
+            if(!useCache)
+                cache = (next = lower_bound(data.begin(), data.end(), tick));
+
+            result = (next == data.end() || GWordPos(*next) != wordPos)
+                ? std::make_pair(fetchUpperBound(wordPos) * tickSpace, false)
+                : std::make_pair(*next * tickSpace, true);
+        }
+        // std::cerr << cache - data.begin() << " " << lte << std::endl;
+        validCache = true;
+        return result;
+    }
+    friend std::istream& operator>>(std::istream& is, TickBitMapBaseOnVector& _) {
+        std::vector<int24> &data = _.data;
+        data.clear();
+        int sz = 0; is >> sz; data.resize(sz);
+        for(int i = 0; i < sz; i++) is >> data[i];
+        sort(data.begin(), data.end());
+        return is;
+    }
+    friend std::ostream& operator<<(std::ostream& os, const TickBitMapBaseOnVector& _) {
+        os << _.data.size() << std::endl;
+        for(auto x : _.data) os << x << " ";
+        return os << std::endl;
+    }
+#ifdef DEBUG
+    double cacheRate() { return 1 - ((double)cacheMiss / cacheTotal); }
+#endif
+};
+#ifdef DEBUG
+    #undef DEBUG
+#endif
 
 // have the same API and behaviour with TickBitmap but based on a STL, `std::set`.
 class TickBitMapBaseOnSet {
@@ -19,10 +141,8 @@ public:
         auto target = data0.lower_bound(tick);
         return target != data0.end() && *target == tick;
     }
-    #define GWordPos(a) ((a) >> 8)
-    #define GBitPos(a) abs(a % 256)
     std::pair<int16, int16> position(int24 tick) {
-        return std::make_pair(tick >> 8, abs(tick % 256));
+        return std::make_pair(int16(tick >> 8), uint8(tick - (int16(tick >> 8) * 256)));
     }
     void flipTick(
         int24 tick,
@@ -35,7 +155,9 @@ public:
         if(exist(tick)) data0.erase(tick), data1.erase(tick);
         else            data0.insert(tick), data1.insert(tick);
     }
-
+    std::pair<int24, int24> fetchBound(int24 wordPos) {
+        return wordPos != 0 ? std::make_pair(wordPos * 256, wordPos * 256 + 256 - 1) : std::make_pair(0, 255);
+    }
     std::pair<int24, bool> nextInitializedTickWithinOneWord(
         int24 tick,
         int24 tickSpace,
@@ -53,14 +175,14 @@ public:
             auto [wordPos, bitPos] = position(tick);
             auto next = data1.lower_bound(tick);
             return (next == data1.end() || GWordPos(*next) != wordPos)
-                ? std::make_pair((tick - bitPos) * tickSpace, false)
+                ? std::make_pair(fetchLowerBound(wordPos) * tickSpace, false)
                 : std::make_pair(*next * tickSpace, true);
         } else { // upper
             tick += 1;
             auto [wordPos, bitPos] = position(tick);
             auto next = data0.lower_bound(tick);
             return (next == data0.end() || GWordPos(*next) != wordPos)
-                ? std::make_pair((tick + 255 - bitPos) * tickSpace, false)
+                ? std::make_pair(fetchUpperBound(wordPos) * tickSpace, false)
                 : std::make_pair(*next * tickSpace, true);
         }
     }
@@ -166,7 +288,7 @@ public:
         for (int i = 0; i < num; ++i) {
             long long x; is >> x;
             // std::cerr << "??? " << x << std::endl;
-            tickBitmap.data[x>>8] |= uint256(1)<<(x%256);
+            tickBitmap.data[x>>8] |= uint256(1)<<(abs(x)%256);
         }
         return is;
     }

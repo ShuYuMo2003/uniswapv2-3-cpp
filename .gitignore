@@ -10,3 +10,4 @@ pool_state
 POOL_STATE_*
 events
 POOL_*_STATE
+*.exe

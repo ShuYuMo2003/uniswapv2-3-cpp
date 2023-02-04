@@ -46,7 +46,7 @@ public:
     /// @inheritdoc IUniswapV3PoolState
 
     // If some error occurs because of bitmap, just replace the codes below to `TickBitmap tickBitmap;`
-    TickBitMapBaseOnSet tickBitmap;
+    TickBitMapBaseOnVector tickBitmap;
 
     /// @inheritdoc IUniswapV3PoolState
     // Positions positions;
@@ -132,6 +132,7 @@ public:
         bytes32 data,
         bool effect = true)
     {
+        // std::cerr << "===================================== new swap ==========================" << std::endl;
         require(amountSpecified != 0, "AS");
 
         Slot0 slot0Start = slot0;
