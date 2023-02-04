@@ -1,7 +1,7 @@
 #ifndef headerfiletick
 #define headerfiletick
 
-#include <map>
+#include <unordered_map>
 
 #include "types.h"
 #include "liquiditymath.h"
@@ -46,7 +46,7 @@ struct Tick {
 };
 
 struct Ticks {
-    std::map<int24, Tick> data;
+    std::unordered_map<int24, Tick> data;
     /// @notice Retrieves fee growth data
     /// @param self The mapping containing all tick information for initialized ticks
     /// @param tickLower The lower tick boundary of the position

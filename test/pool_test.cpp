@@ -39,6 +39,9 @@ std::pair<uint256, uint256> swapWithCheck(
 }
 
 int main(int argc, char *argv[]) {
+    std::cerr << "Initializing tick price" << std::endl;
+    initializeTicksPrice();
+    std::cerr << "done" << std::endl;
     std::ios::sync_with_stdio(false);
     freopen("pool_events_test_big", "r", stdin);
     int fee, tickSpacing;

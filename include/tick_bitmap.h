@@ -130,6 +130,7 @@ public:
     #undef DEBUG
 #endif
 
+/*
 // have the same API and behaviour with TickBitmap but based on a STL, `std::set`.
 class TickBitMapBaseOnSet {
     // To save initialized `tick` (notice: tick is real_tick_No. / tickSpacing)
@@ -202,6 +203,7 @@ public:
         return os << std::endl;
     }
 };
+*/
 
 class TickBitmap {
     std::map<int16, uint256> data;
