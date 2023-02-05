@@ -44,7 +44,7 @@ std::pair<uint256, uint256> swapWithCheck(
 
 
     // std::cerr << "====== 2 FIRST SWAP START =======" << std::endl;
-    auto ret1 = pool.swap(a, b, c, d, e);
+
     // std::cerr << "====== 2 FIRST SWAP END  =======" << std::endl;
 
 
@@ -54,13 +54,20 @@ std::pair<uint256, uint256> swapWithCheck(
     // std::cout << ret1.first << " " << ret1.second << std:: endl;
     // cls && g++ pool_test.cpp -o a -Wall -std=c++17 -O3 && .\a
     // std::cerr << "================================================= END ============================================" << std::endl << std::endl;
+/*
+// calc time:
     std::pair<double, double> ret0;
     timer = getTimeNs();
     for(int i = 0; i < repeatTimes; i++)
         ret0 = pool.swap_effectless(a, b, c, d, e);
     assert(timer != getTimeNs());
     timer = double(getTimeNs() - timer) / repeatTimes;
+*/
 
+// not calc time:
+    auto ret0 = pool.swap_effectless(a, b, c, d, e);
+
+    auto ret1 = pool.swap(a, b, c, d, e);
 
     double diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(ret0.second, ret1.second.ToDouble())  );
 
@@ -114,7 +121,7 @@ int main(int argc, char *argv[]) {
         std::cin >> sender; msg.sender.FromString(sender);
         ++t;
         // std::cerr << "Got contract = " << met << " No." << (t) << std::endl;
-        if(t % 300 == 0) std::cerr << "\rto handle " << t;
+        if(t % 3000 == 0) std::cerr << "to handle " << t << std::endl;
         if (met == "initialize") std::cin >> price >> tick;
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;

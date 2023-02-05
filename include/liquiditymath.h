@@ -22,7 +22,7 @@ uint128 addDelta(uint128 x, int128 y) {
 double addDelta_float(double x, double y) {
     double z;
     z = x + y;
-    require(z > 0 && z <= MAX_UINT128_FLOAT);
+    // require(z > 0 && z <= MAX_UINT128_FLOAT, "LI25");
     return z;
 }
 

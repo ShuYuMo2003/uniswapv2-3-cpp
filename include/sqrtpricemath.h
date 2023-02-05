@@ -51,7 +51,7 @@ uint160 getNextSqrtPriceFromAmount0RoundingUp(
         uint256 product;
         // if the product overflows, we know the denominator underflows
         // in addition, we must check that the denominator does not underflow
-        require((product = amount * sqrtPX96) / amount == sqrtPX96 && numerator1 > product);
+        require((product = amount * sqrtPX96) / amount == sqrtPX96 && numerator1 > product, "PREO");
         uint256 denominator = numerator1 - product;
         return mulDivRoundingUp(numerator1, sqrtPX96, denominator);
     }
@@ -87,7 +87,7 @@ double getNextSqrtPriceFromAmount0RoundingUp_float(
         double product;
         // if the product overflows, we know the denominator underflows
         // in addition, we must check that the denominator does not underflow
-        require(fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS && numerator1 > product);
+        require(fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS && numerator1 > product, "POO");
         double denominator = numerator1 - product;
         return mulDivRoundingUp_float(numerator1, sqrtPX96, denominator);
     }
@@ -126,7 +126,7 @@ uint160 getNextSqrtPriceFromAmount1RoundingDown(
                 : mulDivRoundingUp(amount, Q96, liquidity)
         );
 
-        require(sqrtPX96 > quotient);
+        require(sqrtPX96 > quotient, "FUCK");
         // always fits 160 bits
         return uint160(sqrtPX96 - quotient);
     }
@@ -147,7 +147,7 @@ double getNextSqrtPriceFromAmount1RoundingDown_float(
     } else {
         double quotient = amount / liquidity;
 
-        require(sqrtPX96 > quotient);
+        require(sqrtPX96 > quotient, "QAQ");
         // always fits 160 bits
         return sqrtPX96 - quotient;
     }
@@ -172,7 +172,7 @@ uint256 getAmount0Delta(
     uint256 numerator1 = uint256(liquidity) << RESOLUTION;
     uint256 numerator2 = sqrtRatioBX96 - sqrtRatioAX96;
 
-    require(sqrtRatioAX96 > 0);
+    require(sqrtRatioAX96 > 0, "T_T");
 
     if (roundUp) {
         return divRoundingUp(
@@ -195,7 +195,7 @@ double getAmount0Delta_float(
     double numerator1 = liquidity;
     double numerator2 = sqrtRatioBX96 - sqrtRatioAX96;
 
-    require(sqrtRatioAX96 > 0);
+    require(sqrtRatioAX96 > 0, "QWQ");
 
     if (roundUp) {
         return ceil(mulDivRoundingUp_float(numerator1, numerator2, sqrtRatioBX96) / sqrtRatioAX96);
@@ -287,8 +287,8 @@ uint160 getNextSqrtPriceFromInput(
     bool zeroForOne
 ) {
     // std::cout << "------?? " << sqrtPX96 << " " << liquidity << " " << amountIn << " " << zeroForOne << std::endl;
-    require(sqrtPX96 > 0);
-    require(liquidity > 0);
+    require(sqrtPX96 > 0, "SJY");
+    require(liquidity > 0, "SYM");
 
     // printf("\nNow At getNextSqrtPriceFromInput\n");
     // printf("\t%.2lf\n", sqrtPX96.X96ToDouble());
@@ -309,8 +309,8 @@ double getNextSqrtPriceFromInput_float(
     bool zeroForOne
 ) {
     // std::cout << "------?? " << sqrtPX96 << " " << liquidity << " " << amountIn << " " << zeroForOne << std::endl;
-    require(sqrtPX96 > 0);
-    require(liquidity > 0);
+    require(sqrtPX96 > 0, "SJY_");
+    require(liquidity > 0, "SYM_");
 
     // printf("\nNow At getNextSqrtPriceFromInput\n");
     // printf("\t%.2lf\n", sqrtPX96);
@@ -337,8 +337,8 @@ uint160 getNextSqrtPriceFromOutput(
     uint256 amountOut,
     bool zeroForOne
 ) {
-    require(sqrtPX96 > 0);
-    require(liquidity > 0);
+    require(sqrtPX96 > 0, "ERE");
+    require(liquidity > 0, "POP");
 
     // round to make sure that we pass the target price
     return
@@ -353,8 +353,8 @@ double getNextSqrtPriceFromOutput_float(
     double amountOut,
     bool zeroForOne
 ) {
-    require(sqrtPX96 > 0);
-    require(liquidity > 0);
+    require(sqrtPX96 > 0, "IEEE");
+    require(liquidity > 0, "754");
 
     // round to make sure that we pass the target price
     return

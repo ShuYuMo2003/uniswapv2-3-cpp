@@ -42,7 +42,7 @@ public:
         int24 tick,
         int24 tickSpacing
     ) {
-        require(tick % tickSpacing == 0);
+        require(tick % tickSpacing == 0, "QAZ");
         validCache = false;
         // transform the real tick into the image of the tick in the tick space.
         tick /= tickSpacing;
@@ -220,7 +220,7 @@ public:
         int24 tickSpacing
     ) {
         // std::cout << tick << " " << tickSpacing << " " << tick / tickSpacing << std::endl;
-        require(tick % tickSpacing == 0); // ensure that the tick is spaced
+        require(tick % tickSpacing == 0, "WSX"); // ensure that the tick is spaced
         int16 wordPos; uint8 bitPos;
         std::tie(wordPos, bitPos) = position(tick / tickSpacing);
         // std::cout << wordPos << " " << bitPos << std::endl;

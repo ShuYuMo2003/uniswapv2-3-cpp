@@ -709,7 +709,7 @@ public:
         uint128 amount,
         bytes32 data
     ) {
-        require(amount > 0);
+        require(amount > 0, "AMZ0");
         int256 amount0Int, amount1Int;
         // std::tie(std::ignore, amount0Int, amount1Int) = _modifyPosition(
         std::tie(amount0Int, amount1Int) = _modifyPosition(

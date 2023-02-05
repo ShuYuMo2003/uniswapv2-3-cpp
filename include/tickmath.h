@@ -73,7 +73,7 @@ void initializeTicksPrice() {
 /// at the given tick
 uint160 getSqrtRatioAtTick(int24 tick) {
     require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
-    require(MIN_TICK <= tick && tick <= MAX_TICK);
+    require(MIN_TICK <= tick && tick <= MAX_TICK, "TICK0");
     return getSqrtRatioAtTickMemory[tick + shift];
 }
 

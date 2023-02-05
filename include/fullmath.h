@@ -33,7 +33,7 @@ uint256 mulDivRoundingUp(
 ) {
     uint256 result = mulDiv(a, b, denominator);
     if (mulmod(a, b, denominator) > 0) {
-        require(result < uint256(0) - 1);
+        require(result < uint256(0) - 1, "F36");
         result++;
     }
     return result;
