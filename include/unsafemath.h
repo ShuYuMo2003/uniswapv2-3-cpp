@@ -7,4 +7,8 @@ uint256 divRoundingUp(uint256 x, uint256 y) {
     return x / y + (x % y > 0);
 }
 
+double divRoundingUp_float(double x, double y) {
+    return ceil(x / y);
+}
+
 #endif

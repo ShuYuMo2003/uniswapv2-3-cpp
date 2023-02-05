@@ -3088,6 +3088,10 @@ public:
 		FromUInt(u);
 	}
 
+	// UInt(const double & val) {
+	// 	assert(!("WARNING: can not convert double variable into ttmath::UInt automatically."));
+	// }
+
 
 
 
@@ -3098,7 +3102,7 @@ public:
 	{
 	}
 
-	double ToDouble(){
+	double ToDouble() const {
 		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
 		unsigned long long mantissa = 0, exponent = 0;
 		uint table_id, index;
@@ -3120,7 +3124,7 @@ public:
 		return *(double*)(&result);
 	}
 
-	double X96ToDouble() {
+	double X96ToDouble() const {
 		assert(value_size == 5); // For `uint160` only.
 
 		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
@@ -3135,7 +3139,7 @@ public:
 		return *(double*)(&value);
 	}
 
-	operator double(){ return ToDouble(); }
+	// operator double() const { return ToDouble(); }
 
 
 	/*!

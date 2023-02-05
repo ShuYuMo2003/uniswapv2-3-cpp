@@ -23,6 +23,8 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
     int256 amountRemaining,
     uint24 feePips
 ) {
+    // printf("\nNOW AT computeSwapStep\n");
+    // std::cout << "ARGS:\n" << (sqrtRatioCurrentX96 >> 96) << "\n" << (sqrtRatioTargetX96 >> 96) << "\n" << liquidity << "\n" << amountRemaining << "\n";
     bool zeroForOne = sqrtRatioCurrentX96 >= sqrtRatioTargetX96;
     bool exactIn = amountRemaining >= 0;
 
@@ -38,7 +40,7 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
             ? getAmount0Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, true)
             : getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, true);
         // std::cout << amountIn << std::endl;
-        if (amountRemainingLessFee >= amountIn) sqrtRatioNextX96 = sqrtRatioTargetX96;
+        if (amountRemainingLessFee >= amountIn) sqrtRatioNextX96 = sqrtRatioTargetX96;//, puts("CASE 0");
         else
             sqrtRatioNextX96 = getNextSqrtPriceFromInput(
                 sqrtRatioCurrentX96,
@@ -46,6 +48,9 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
                 amountRemainingLessFee,
                 zeroForOne
             );
+        // std::cout << "$1 = " << amountRemainingLessFee << std::endl;
+        // std::cout << "$2 = " << amountIn << std::endl;
+        // printf("$3 = %.2lf\n", sqrtRatioNextX96.X96ToDouble());
     } else {
         amountOut = zeroForOne
             ? getAmount1Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, false)
@@ -91,6 +96,93 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
     } else {
         feeAmount = mulDivRoundingUp(amountIn, feePips, uint24(1e6) - feePips);
     }
+    // puts("");
+    return std::make_tuple(sqrtRatioNextX96, amountIn, amountOut, feeAmount);
+}
+
+
+std::tuple<double, double, double, double> computeSwapStep_float(
+    double sqrtRatioCurrentX96,
+    double sqrtRatioTargetX96,
+    double liquidity,
+    double amountRemaining,
+    uint24 feePips
+) {
+    // printf("\nNOW AT computeSwapStep\n");
+    // printf("ARGS:\n%.20lf\n%.20lf\n%.20lf\n%.20lf\n", sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, amountRemaining);
+    bool zeroForOne = sqrtRatioCurrentX96 >= sqrtRatioTargetX96;
+    bool exactIn = amountRemaining >= 0;
+
+    double sqrtRatioNextX96;
+    double amountIn, amountOut, feeAmount;
+
+    if (exactIn) {
+        // std::cout << uint256(amountRemaining) << " " << uint24(1e6) - feePips << " " << uint24(1e6) << std::endl;
+        double amountRemainingLessFee = mulDiv_float(amountRemaining , 1e6 - feePips, 1e6);
+        // std::cout << amountRemainingLessFee << std::endl;
+        // std::cout << zeroForOne << " " << sqrtRatioCurrentX96 << " " << sqrtRatioTargetX96 << " " << liquidity << std::endl;
+        amountIn = zeroForOne
+            ? getAmount0Delta_float(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, true)
+            : getAmount1Delta_float(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, true);
+        // std::cout << amountIn << std::endl;
+        if (amountRemainingLessFee >= amountIn) sqrtRatioNextX96 = sqrtRatioTargetX96;//, puts("CASE 0");
+        else
+            sqrtRatioNextX96 = getNextSqrtPriceFromInput_float(
+                sqrtRatioCurrentX96,
+                liquidity,
+                amountRemainingLessFee,
+                zeroForOne
+            );
+        // printf("$1 = %.2lf\n", amountRemainingLessFee);
+        // printf("$2 = %.2lf\n", amountIn);
+        // printf("$3 = %.2lf\n", sqrtRatioNextX96);
+    } else {
+        amountOut = zeroForOne
+            ? getAmount1Delta_float(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, false)
+            : getAmount0Delta_float(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, false);
+        if (-amountRemaining >= amountOut) sqrtRatioNextX96 = sqrtRatioTargetX96;
+        else
+            sqrtRatioNextX96 = getNextSqrtPriceFromOutput_float(
+                sqrtRatioCurrentX96,
+                liquidity,
+                -amountRemaining,
+                zeroForOne
+            );
+    }
+    // std::cout << sqrtRatioNextX96 << std::endl;
+
+    bool max = fabs(sqrtRatioTargetX96 - sqrtRatioNextX96) < EPS;
+
+    // get the input/output amounts
+    if (zeroForOne) {
+        amountIn = max && exactIn
+            ? amountIn
+            : getAmount0Delta_float(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, true);
+        amountOut = max && !exactIn
+            ? amountOut
+            : getAmount1Delta_float(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, false);
+    } else {
+        amountIn = max && exactIn
+            ? amountIn
+            : getAmount1Delta_float(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, true);
+        amountOut = max && !exactIn
+            ? amountOut
+            : getAmount0Delta_float(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, false);
+    }
+
+    // cap the output amount to not exceed the remaining output amount
+    if (!exactIn && amountOut > -amountRemaining) {
+        amountOut = -amountRemaining;
+    }
+
+    if (exactIn && fabs(sqrtRatioNextX96 - sqrtRatioTargetX96) > EPS) {
+        // we didn't reach the target, so take the remainder of the maximum input as fee
+        feeAmount = amountRemaining - amountIn;
+    } else {
+        feeAmount = mulDivRoundingUp_float(amountIn, feePips, (1e6) - feePips);
+    }
+
+    // puts("");
     return std::make_tuple(sqrtRatioNextX96, amountIn, amountOut, feeAmount);
 }
 

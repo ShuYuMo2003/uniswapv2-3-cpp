@@ -55,7 +55,8 @@
         "xutility": "cpp",
         "unordered_map": "cpp",
         "list": "cpp",
-        "xhash": "cpp"
+        "xhash": "cpp",
+        "bitset": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

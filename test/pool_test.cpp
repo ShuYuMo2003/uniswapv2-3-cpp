@@ -9,8 +9,14 @@ uint256 dis(uint256 a, uint256 b) {
 }
 
 long long getTimeNs() {
-    return clock();
+    return 1LL * clock() * 1000 * 1000 * 1000 / CLOCKS_PER_SEC; // ns
 }
+
+const int repeatTimes = 100000;
+double MAX_DIFF = -1;
+double TOT_DIFF = 0;
+int    TOT_CNT  = 0;
+
 
 std::pair<uint256, uint256> swapWithCheck(
     Pool & pool,
@@ -19,7 +25,7 @@ std::pair<uint256, uint256> swapWithCheck(
     int256 c,
     uint160 d,
     bytes32 e,
-    long long &timer)
+    long long & timer)
 { // recover the comments below to test the switch of the effects on pool state.
     // pool.save("POOL_STATE_BEFORE");
     // timer = getTimeNs();
@@ -29,21 +35,57 @@ std::pair<uint256, uint256> swapWithCheck(
     // pool.save("POOL_STATE_AFTER");
 
     // assert(system("diff POOL_STATE_BEFORE POOL_STATE_AFTER") == 0);
+    // std::cerr << "================================================= START ============================================" << std::endl;
 
+    // std::cerr << "====== 1 FIRST SWAP START =======" << std::endl;
+
+    // std::cerr << "====== 1 FIRST SWAP END  =======" << std::endl << std::endl;
+
+
+
+    // std::cerr << "====== 2 FIRST SWAP START =======" << std::endl;
+    auto ret1 = pool.swap(a, b, c, d, e);
+    // std::cerr << "====== 2 FIRST SWAP END  =======" << std::endl;
+
+
+    // std::cout << "==========================" << std::endl;
+    // std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(0);
+    // std::cout << ret0.first << " " << ret0.second << std::endl;
+    // std::cout << ret1.first << " " << ret1.second << std:: endl;
+    // cls && g++ pool_test.cpp -o a -Wall -std=c++17 -O3 && .\a
+    // std::cerr << "================================================= END ============================================" << std::endl << std::endl;
+    std::pair<double, double> ret0;
     timer = getTimeNs();
-    auto ret1 = pool.swap(a, b, c, d, e, true);
-    timer = getTimeNs() - timer;
+    for(int i = 0; i < repeatTimes; i++)
+        ret0 = pool.swap_effectless(a, b, c, d, e);
+    assert(timer != getTimeNs());
+    timer = double(getTimeNs() - timer) / repeatTimes;
 
-    // assert(ret0 == ret1);
+
+    double diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(ret0.second, ret1.second.ToDouble())  );
+
+    if(diffe < 0.02) ; else {
+        static char buffer[1000];
+        sprintf(buffer, "\n\n================================================= FAIL ============================================\n"
+                        "%.30lf %.30lf\n%.30lf %.30lf\n",
+                ret0.first, ret0.second, ret1.first.ToDouble(), ret1.second.ToDouble());
+        std::cerr << buffer << std::endl;
+    }
+
+    MAX_DIFF = std::max(MAX_DIFF, diffe);
+    TOT_DIFF += diffe; TOT_CNT ++;
+
+
     return ret1;
 }
 
 int main(int argc, char *argv[]) {
+    std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(0);
     std::cerr << "Initializing tick price" << std::endl;
     initializeTicksPrice();
     std::cerr << "done" << std::endl;
     std::ios::sync_with_stdio(false);
-    freopen("pool_events_test_big", "r", stdin);
+    freopen("pool_events_test", "r", stdin);
     int fee, tickSpacing;
     uint256 maxLiquidityPerTick;
     std::cin >> fee >> tickSpacing >> maxLiquidityPerTick;
@@ -65,13 +107,14 @@ int main(int argc, char *argv[]) {
     long long timeCnt[4] = {0};
     int tick, tickLower, tickUpper, zeroToOne, t = 0, blockNum;
     while (std::cin >> met) {
-        // std::cerr << "Got contract = " << met << " No." << (++Not) << std::endl;
+
         Pool back = pool;
         // Pool pool("tmp" + std::to_string(t)), back = pool;
         // pool.save("tmpread" + std::to_string(t));
         std::cin >> sender; msg.sender.FromString(sender);
         ++t;
-        if(t % 3000 == 0) std::cerr << "\rto handle " << t;
+        // std::cerr << "Got contract = " << met << " No." << (t) << std::endl;
+        if(t % 300 == 0) std::cerr << "\rto handle " << t;
         if (met == "initialize") std::cin >> price >> tick;
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;
@@ -163,11 +206,14 @@ int main(int argc, char *argv[]) {
     }
     std::cout << "============= Timer ============" << std::endl;
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(6);
-    std::cout << "init: \t" << ((double) (timeCnt[0]) / cnt[0] / CLOCKS_PER_SEC) * 1000 * 1000 * 1000 << " ns/opt" << std::endl;
-    std::cout << "mint: \t" << ((double) (timeCnt[1]) / cnt[1] / CLOCKS_PER_SEC) * 1000 * 1000 * 1000 << " ns/opt" << std::endl;
-    std::cout << "swap: \t" << ((double) (timeCnt[2]) / cnt[2] / CLOCKS_PER_SEC) * 1000 * 1000 * 1000 << " ns/opt" << std::endl;
-    std::cout << "burn: \t" << ((double) (timeCnt[3]) / cnt[3] / CLOCKS_PER_SEC) * 1000 * 1000 * 1000 << " ns/opt" << std::endl;
+    std::cout << "init: \t" << ((long double) (timeCnt[0]) / cnt[0])  << " ns/opt" << std::endl;
+    std::cout << "mint: \t" << ((long double) (timeCnt[1]) / cnt[1])  << " ns/opt" << std::endl;
+    std::cout << "swap: \t" << ((long double) (timeCnt[2]) / cnt[2])  << " ns/opt" << std::endl;
+    std::cout << "burn: \t" << ((long double) (timeCnt[3]) / cnt[3] ) << " ns/opt" << std::endl;
 
+    std::cout << "\n============ mistakes ===========" << std::endl;
+    std::cout << "SWAP without effect \taverage mistake = \t" << (TOT_DIFF / TOT_CNT) << std::endl;
+    std::cout << "\t\t\tmaximum mistake = \t" << MAX_DIFF << std::endl;
     // std::cerr << "cache rate = " << pool.tickBitmap.cacheRate() << " " << pool.tickBitmap.cacheMiss << " " << pool.tickBitmap.cacheTotal<< std::endl;
 
     pool.save("pool_state");

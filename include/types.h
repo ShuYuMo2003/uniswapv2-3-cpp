@@ -25,6 +25,22 @@ typedef ttmath::Int<8> int256;
 
 typedef std::string bytes32;
 
+struct Slot0_float {
+    // the current price
+    double sqrtPriceX96;
+    // the current tick
+    int24 tick;
+    Slot0_float() { sqrtPriceX96 = 0; }
+    Slot0_float(
+        uint160 sqrtPriceX96,
+        int24 tick
+    ) : sqrtPriceX96(sqrtPriceX96.X96ToDouble()),
+        tick(tick)
+        {
+
+    }
+};
+
 struct Slot0 {
     // the current price
     uint160 sqrtPriceX96;
@@ -81,6 +97,16 @@ struct Slot0 {
     }
 };
 
+struct SwapCache_float {
+    // the protocol fee for the input token
+    // uint8 feeProtocol;
+    // liquidity at the beginning of the swap
+    double liquidityStart;
+    SwapCache_float(uint128 liquidityStart) : liquidityStart(liquidityStart.ToDouble()) {
+
+    }
+};
+
 struct SwapCache {
     // the protocol fee for the input token
     // uint8 feeProtocol;
@@ -109,6 +135,29 @@ struct SwapCache {
         // secondsPerLiquidityCumulativeX128(secondsPerLiquidityCumulativeX128),
         // computedLatestObservation(computedLatestObservation)
         {
+
+    }
+};
+
+struct SwapState_float {
+    double amountSpecifiedRemaining;
+    double amountCalculated;
+    double sqrtPriceX96;
+    int24 tick;
+    double liquidity;
+
+    SwapState_float(
+        double amountSpecifiedRemaining,
+        double amountCalculated,
+        double sqrtPriceX96,
+        int24 tick,
+        double liquidity
+    ) : amountSpecifiedRemaining(amountSpecifiedRemaining),
+        amountCalculated(amountCalculated),
+        sqrtPriceX96(sqrtPriceX96),
+        tick(tick),
+        liquidity(liquidity)
+    {
 
     }
 };
@@ -148,6 +197,23 @@ struct SwapState {
     {
 
     }
+};
+
+struct StepComputations_float {
+    // the price at the beginning of the step
+    double sqrtPriceStartX96;
+    // the next tick to swap to from the current tick in the swap direction
+    int24 tickNext;
+    // whether tickNext is initialized or not
+    bool initialized;
+    // sqrt(price) for the next tick (1/0)
+    double sqrtPriceNextX96;
+    // how much is being swapped in in this step
+    double amountIn;
+    // how much is being swapped out
+    double amountOut;
+    // how much fee is being paid in
+    double feeAmount;
 };
 
 struct StepComputations {

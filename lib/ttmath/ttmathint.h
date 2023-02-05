@@ -1104,6 +1104,10 @@ public:
 		FromString( s.c_str() );
 	}
 
+	// Int(const double & val) {
+	// 	assert(!("WARNING: can not convert double variable into ttmath::Int automatically."));
+	// }
+
 #endif
 
 

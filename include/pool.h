@@ -1,7 +1,9 @@
 #ifndef headerfilepool
 #define headerfilepool
 
-#include<fstream>
+#include <fstream>
+#include <cmath>
+#include <cstdlib> // For debug pause only.
 
 #include "consts.h"
 #include "global.h"
@@ -171,6 +173,7 @@ public:
 
         // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
         while (state.amountSpecifiedRemaining != 0 && state.sqrtPriceX96 != sqrtPriceLimitX96) {
+            // std::cerr << "Remaining: " << state.amountSpecifiedRemaining << std::endl;
             StepComputations step;
 
             step.sqrtPriceStartX96 = state.sqrtPriceX96;
@@ -213,6 +216,11 @@ public:
                 state.amountSpecifiedRemaining,
                 fee
             );
+
+            // std::cout << "state.sqrtPriceX96: " <<  (state.sqrtPriceX96.X96ToDouble()) << std::endl;
+            // std::cout << "step.amountIn: " << (step.amountIn)  << std::endl;
+            // std::cout << "step.amountOut: " << step.amountOut << std::endl;
+            // std::cout << "step.feeAmount: " << step.feeAmount << std::endl;
             // std::cout << "---- " << state.sqrtPriceX96 << " " << step.amountIn << " " << step.amountOut << " " << step.feeAmount << std::endl;
 
             if (exactInput) {
@@ -277,6 +285,8 @@ public:
                 // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
                 state.tick = getTickAtSqrtRatio(state.sqrtPriceX96);
             }
+
+            // std::cerr << "END Remaining: " << state.amountSpecifiedRemaining << std::endl;
         }
 
         // std::cout << "---- " << state.tick << " " << slot0Start.tick << std::endl;
@@ -346,6 +356,170 @@ public:
         // slot0.unlocked = true;
         return std::make_pair(amount0, amount1);
     }
+
+    std::pair<double, double> swap_effectless(
+        address recipient,
+        bool zeroForOne,
+        int256 raw_amountSpecified,
+        uint160 raw_sqrtPriceLimitX96,
+        bytes32 data)
+    {
+        double sqrtPriceLimitX96 = raw_sqrtPriceLimitX96.X96ToDouble();
+        double amountSpecified   = raw_amountSpecified.ToDouble();
+
+        require(fabs(amountSpecified) > EPS, "AS");
+
+        Slot0_float slot0Start(slot0.sqrtPriceX96, slot0.tick);
+
+        require(
+            zeroForOne
+                ? raw_sqrtPriceLimitX96 < slot0.sqrtPriceX96 && raw_sqrtPriceLimitX96 > MIN_SQRT_RATIO
+                : raw_sqrtPriceLimitX96 > slot0.sqrtPriceX96 && raw_sqrtPriceLimitX96 < MAX_SQRT_RATIO,
+            "SPL"
+        );
+/*
+        std::cerr << sqrtPriceLimitX96 << std::endl;
+
+        if(
+            zeroForOne
+                ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > MIN_SQRT_RATIO_FLOAT
+                : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < MAX_SQRT_RATIO_FLOAT
+        ); else {
+            std::cout << "================================ FAIL ================================" << std::endl;
+            std::cout << zeroForOne << std::endl;
+            printf("Price = %.50lf\n", sqrtPriceLimitX96);
+            std::cout << sqrtPriceLimitX96 << " " << slot0Start.sqrtPriceX96 << " " << sqrtPriceLimitX96 << " " <<  MAX_SQRT_RATIO_FLOAT << std::endl;
+            assert(false);
+        }
+
+        // std::cerr <<
+*/
+        // printf("START_PRICE = %.30lf\n", slot0Start.sqrtPriceX96);
+
+        SwapCache_float cache = SwapCache_float(liquidity);
+
+        bool exactInput = amountSpecified > 0;
+
+
+        SwapState_float state = SwapState_float(
+            amountSpecified,
+            0,
+            slot0Start.sqrtPriceX96,
+            slot0Start.tick,
+            cache.liquidityStart
+        );
+
+        // printf("liq:\n\t%.2lf\n\t%.2lf\n", cache.liquidityStart, state.liquidity);
+
+        // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
+        double lastAmountSpecifiedRemaining = 0;
+
+        while ((fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) > EPS)
+            && fabs(state.amountSpecifiedRemaining) > EPS
+            && fabs(state.sqrtPriceX96 - sqrtPriceLimitX96) > EPS) {
+
+            lastAmountSpecifiedRemaining = state.amountSpecifiedRemaining;
+
+            // printf("Remaining: %.20lf\n", state.amountSpecifiedRemaining);
+            StepComputations_float step;
+
+            step.sqrtPriceStartX96 = state.sqrtPriceX96;
+
+            std::tie(step.tickNext, step.initialized) = tickBitmap.nextInitializedTickWithinOneWord(
+                state.tick,
+                tickSpacing,
+                zeroForOne
+            );
+
+            // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
+            if (step.tickNext < MIN_TICK) {
+                step.tickNext = MIN_TICK;
+            } else if (step.tickNext > MAX_TICK) {
+                step.tickNext = MAX_TICK;
+            }
+
+            // get the price for the next tick
+            step.sqrtPriceNextX96 = getSqrtRatioAtTick(step.tickNext).X96ToDouble();
+
+            // std::cout << "call" << std::endl;
+            std::tie(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = computeSwapStep_float(
+                state.sqrtPriceX96,
+                (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+                    ? sqrtPriceLimitX96
+                    : step.sqrtPriceNextX96,
+                state.liquidity,
+                state.amountSpecifiedRemaining,
+                fee
+            );
+
+            // printf("state.sqrtPriceX96: %.2lf\n", state.sqrtPriceX96);
+            // printf("step.amountIn: %.2lf\n", step.amountIn);
+            // printf("step.amountOut: %.2lf\n", step.amountOut);
+            // printf("step.feeAmount: %.2lf\n", step.feeAmount);
+
+
+            if (exactInput) {
+                state.amountSpecifiedRemaining -= step.amountIn + step.feeAmount;
+                state.amountCalculated = state.amountCalculated - step.amountOut;
+            } else {
+                state.amountSpecifiedRemaining += step.amountOut;
+                state.amountCalculated = state.amountCalculated + step.amountIn + step.feeAmount;
+            }
+
+            // shift tick if we reached the next price
+            if (fabs(state.sqrtPriceX96 - step.sqrtPriceNextX96) < EPS) {
+                // if the tick is initialized, run the tick transition
+                if (step.initialized) {
+                    double liquidityNet = ticks.cross(step.tickNext).ToDouble();
+
+                    // if we're moving leftward, we interpret liquidityNet as the opposite sign
+                    // safe because liquidityNet cannot be type(int128).min
+                    if (zeroForOne) liquidityNet = -liquidityNet;
+
+                    state.liquidity = addDelta_float(state.liquidity, liquidityNet);
+                }
+
+                state.tick = zeroForOne ? step.tickNext - 1 : step.tickNext;
+            } else if (fabs( state.sqrtPriceX96 - step.sqrtPriceStartX96) > EPS) {
+                // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
+                state.tick = getTickAtSqrtRatio_float(state.sqrtPriceX96);
+            }
+
+            // printf("END Remaining: %.50lf\n", state.amountSpecifiedRemaining);
+
+
+        }
+/*
+        // !! mustn't have any effects on the ticks.
+        // !! This function is only able to get `fucking shit grabage result`.
+
+        // update tick and write an oracle entry if the tick change
+        if(effect) {
+            if (state.tick != slot0Start.tick) {
+                slot0.sqrtPriceX96 = state.sqrtPriceX96;
+                slot0.tick = state.tick;
+            } else {
+                // otherwise just update the price
+                slot0.sqrtPriceX96 = state.sqrtPriceX96;
+            }
+
+            // update liquidity if it changed
+            if (cache.liquidityStart != state.liquidity) liquidity = state.liquidity;
+        }
+*/
+        double amount0, amount1;
+        if (zeroForOne == exactInput) {
+            amount0 = amountSpecified - state.amountSpecifiedRemaining;
+            amount1 = state.amountCalculated;
+        } else {
+            amount0 = state.amountCalculated;
+            amount1 = amountSpecified - state.amountSpecifiedRemaining;
+        }
+        // do the transfers and collect payment
+        return std::make_pair(amount0, amount1);
+    }
+
+
 
     void checkTicks(int24 tickLower, int24 tickUpper) {
         require(tickLower < tickUpper, "TLU");

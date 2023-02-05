@@ -11,3 +11,4 @@ POOL_STATE_*
 events
 POOL_*_STATE
 *.exe
+TickCache.dat
