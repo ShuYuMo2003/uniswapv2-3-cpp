@@ -72,22 +72,22 @@ std::pair<uint256, uint256> swapWithCheck(
     double diffe;
     // bool fail = false;
     if (zeroToOne^(amountSpecified > 0)) {
-        diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(ret0.second, ret1.second.ToDouble())  );
+        diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(fabs(ret0.second), fabs(ret1.second.ToDouble()))  );
     } else {
         diffe = fabs(  (ret1.first.ToDouble() - ret0.first) / std::max(fabs(ret0.first), fabs(ret1.first.ToDouble()))  );
     }
 
-    if(diffe < 0.000001 || (ret1.first > -100000 && ret1.first < 100000) || (ret1.second > -100000 && ret1.second < 100000)) ; else {
+    if(diffe < 0.000001 || (ret1.first > -100000 && ret1.first < 100000) || (ret1.second > -100000 && ret1.second < 100000)) {
+        MAX_DIFF = std::max(MAX_DIFF, diffe);
+        TOT_DIFF += diffe; TOT_CNT ++;
+    } else {
         static char buffer[1000];
         sprintf(buffer, "\n\n================================================= FAIL ============================================\n"
                         "%.30lf %.30lf\n%.30lf %.30lf\n",
                 ret0.first, ret0.second, ret1.first.ToDouble(), ret1.second.ToDouble());
         std::cerr << buffer << std::endl;
-        // exit(0);
+        exit(0);
     }
-
-    MAX_DIFF = std::max(MAX_DIFF, diffe);
-    TOT_DIFF += diffe; TOT_CNT ++;
 
 
     return ret1;
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
         // int lim = 1268728;
         if (blockNum <= stBlock) continue;
         // else if (t == lim) { pool = Pool("tmp" + std::to_string(t)); continue; }
-        std::cout << t << " " << met << std::endl;
+        // std::cout << t << " " << met << std::endl;
         if (met == "initialize") {
             cnt[0]++;
             long long start = getTimeNs();
