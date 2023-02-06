@@ -21,8 +21,8 @@ int    TOT_CNT  = 0;
 std::pair<uint256, uint256> swapWithCheck(
     Pool & pool,
     address a,
-    bool b,
-    int256 c,
+    bool zeroToOne,
+    int256 amountSpecified,
     uint160 d,
     bytes32 e,
     long long & timer)
@@ -60,23 +60,30 @@ std::pair<uint256, uint256> swapWithCheck(
     timer = getTimeNs();
     for(int i = 0; i < repeatTimes; i++)
         ret0 = pool.swap_effectless(a, b, c, d, e);
-    assert(timer != getTimeNs());
+    // assert(timer != getTimeNs());
     timer = double(getTimeNs() - timer) / repeatTimes;
 */
 
 // not calc time:
-    auto ret0 = pool.swap_effectless(a, b, c, d, e);
+    auto ret0 = pool.swap_effectless(a, zeroToOne, amountSpecified, d, e);
 
-    auto ret1 = pool.swap(a, b, c, d, e);
+    auto ret1 = pool.swap(a, zeroToOne, amountSpecified, d, e);
 
-    double diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(ret0.second, ret1.second.ToDouble())  );
+    double diffe;
+    // bool fail = false;
+    if (zeroToOne^(amountSpecified > 0)) {
+        diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(ret0.second, ret1.second.ToDouble())  );
+    } else {
+        diffe = fabs(  (ret1.first.ToDouble() - ret0.first) / std::max(fabs(ret0.first), fabs(ret1.first.ToDouble()))  );
+    }
 
-    if(diffe < 0.02) ; else {
+    if(diffe < 0.000001 || (ret1.first > -100000 && ret1.first < 100000) || (ret1.second > -100000 && ret1.second < 100000)) ; else {
         static char buffer[1000];
         sprintf(buffer, "\n\n================================================= FAIL ============================================\n"
                         "%.30lf %.30lf\n%.30lf %.30lf\n",
                 ret0.first, ret0.second, ret1.first.ToDouble(), ret1.second.ToDouble());
         std::cerr << buffer << std::endl;
+        // exit(0);
     }
 
     MAX_DIFF = std::max(MAX_DIFF, diffe);
@@ -90,7 +97,7 @@ int main(int argc, char *argv[]) {
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(0);
     std::cerr << "Initializing tick price" << std::endl;
     initializeTicksPrice();
-    std::cerr << "done" << std::endl;
+    std::cerr << "Tick price initialized" << std::endl;
     std::ios::sync_with_stdio(false);
     freopen("pool_events_test", "r", stdin);
     int fee, tickSpacing;
@@ -130,7 +137,7 @@ int main(int argc, char *argv[]) {
         // int lim = 1268728;
         if (blockNum <= stBlock) continue;
         // else if (t == lim) { pool = Pool("tmp" + std::to_string(t)); continue; }
-        // std::cout << t << " " << met << std::endl;
+        std::cout << t << " " << met << std::endl;
         if (met == "initialize") {
             cnt[0]++;
             long long start = getTimeNs();
@@ -165,12 +172,9 @@ int main(int argc, char *argv[]) {
                 else if (i == 2) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount + "0", price, "", timer);
                 // std::cout << "amount0: " << ramount0 << " " << amount0 << std::endl;
                 // std::cout << "amount1: " << ramount1 << " " << amount1 << std::endl;
-                // // assert(ramount0 == amount0 && ramount1 == amount1);
                 // std::cout << "liquidity: " << pool.liquidity << " " << liquidity << std::endl;
                 // std::cout << "tick: " << pool.slot0.tick << " " << tick << std::endl;
                 // std::cout << "price: " << pool.slot0.sqrtPriceX96 << " " << price << std::endl;
-                // // assert(pool.liquidity == liquidity && pool.slot0.tick == tick);
-                // // assert(pool.slot0.sqrtPriceX96 == price);
                 // std::cout << "============== Swap attempt " << (i + 1) << " END ================\n";
                 if (ramount0 == amount0 && ramount1 == amount1
                     && pool.liquidity == liquidity && pool.slot0.tick == tick

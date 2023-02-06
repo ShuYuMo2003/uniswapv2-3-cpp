@@ -206,7 +206,6 @@ public:
             // std::cout << "==== " << state.sqrtPriceX96 << " " << ((zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
             //         ? sqrtPriceLimitX96
             //         : step.sqrtPriceNextX96) << " " << state.liquidity << " " << state.amountSpecifiedRemaining << " " << fee << std::endl;
-            // if (state.liquidity == "353994491063406687") state.liquidity = "353265040822481228";
             std::tie(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = computeSwapStep(
                 state.sqrtPriceX96,
                 (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)

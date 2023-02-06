@@ -140,6 +140,7 @@ std::pair<bool, GetCircleRes> get_circle(int start_point, uint256 init_amount) {
 int main() {
     std::ios::sync_with_stdio(false);
     freopen("input_for_algo", "r", stdin);
+    initializeTicksPrice();
     std::cin >> token_num >> v2_pair_num >> v3_pool_num;
     E.resize(token_num), v2_pairs.resize(v2_pair_num), v3_pools.resize(v3_pool_num);
     for (int i = 0; i < v2_pair_num; ++i) {

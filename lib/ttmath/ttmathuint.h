@@ -3102,6 +3102,7 @@ public:
 	{
 	}
 
+	// warning: do not support 32bit machine
 	double ToDouble() const {
 		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
 		unsigned long long mantissa = 0, exponent = 0;
@@ -3112,12 +3113,12 @@ public:
 
 		for(uint i = 0; i <= table_id; i++) {
 			uint width = (i == table_id ? index : TTMATH_BITS_PER_UINT);
-			uint bits = table[i] & ((1LL << width) - 1);
+			unsigned long long bits = table[i] & ((1ull << width) - 1);
 			mantissa >>= width;
-			mantissa |= (bits << (TTMATH_BITS_PER_UINT - width));
+			mantissa |= (bits << (52 - width));
 		}
 
-		mantissa >>= (64 - 52); // Extra bits have to be ignore.
+		// mantissa >>= (64 - 52); // Extra bits have to be ignore.
 
 		unsigned long long result = 0;
 		result = (exponent << 52) | mantissa;
