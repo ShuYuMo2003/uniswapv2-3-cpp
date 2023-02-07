@@ -65,29 +65,29 @@ std::pair<uint256, uint256> swapWithCheck(
 */
 
 // not calc time:
-    auto ret0 = pool.swap_effectless(zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble());
+    // auto ret0 = pool.swap_effectless(zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble());
 
     auto ret1 = pool.swap(a, zeroToOne, amountSpecified, sqrtPriceLimitX96, e);
 
-    double diffe;
-    // bool fail = false;
-    if (zeroToOne^(amountSpecified > 0)) {
-        diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(fabs(ret0.second), fabs(ret1.second.ToDouble()))  );
-    } else {
-        diffe = fabs(  (ret1.first.ToDouble() - ret0.first) / std::max(fabs(ret0.first), fabs(ret1.first.ToDouble()))  );
-    }
+    // double diffe;
+    // // bool fail = false;
+    // if (zeroToOne^(amountSpecified > 0)) {
+    //     diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(fabs(ret0.second), fabs(ret1.second.ToDouble()))  );
+    // } else {
+    //     diffe = fabs(  (ret1.first.ToDouble() - ret0.first) / std::max(fabs(ret0.first), fabs(ret1.first.ToDouble()))  );
+    // }
 
-    if(diffe < 0.000001 || (ret1.first > -100000 && ret1.first < 100000) || (ret1.second > -100000 && ret1.second < 100000)) {
-        MAX_DIFF = std::max(MAX_DIFF, diffe);
-        TOT_DIFF += diffe; TOT_CNT ++;
-    } else {
-        static char buffer[1000];
-        sprintf(buffer, "\n\n================================================= FAIL ============================================\n"
-                        "%.30lf %.30lf\n%.30lf %.30lf\n",
-                ret0.first, ret0.second, ret1.first.ToDouble(), ret1.second.ToDouble());
-        std::cerr << buffer << std::endl;
-        exit(0);
-    }
+    // if(diffe < 0.000001 || (ret1.first > -100000 && ret1.first < 100000) || (ret1.second > -100000 && ret1.second < 100000)) {
+    //     MAX_DIFF = std::max(MAX_DIFF, diffe);
+    //     TOT_DIFF += diffe; TOT_CNT ++;
+    // } else {
+    //     static char buffer[1000];
+    //     sprintf(buffer, "\n\n================================================= FAIL ============================================\n"
+    //                     "%.30lf %.30lf\n%.30lf %.30lf\n",
+    //             ret0.first, ret0.second, ret1.first.ToDouble(), ret1.second.ToDouble());
+    //     std::cerr << buffer << std::endl;
+    //     exit(0);
+    // }
 
 
     return ret1;
