@@ -357,26 +357,22 @@ public:
     }
 
     std::pair<double, double> swap_effectless(
-        address recipient,
         bool zeroForOne,
-        int256 raw_amountSpecified,
-        uint160 raw_sqrtPriceLimitX96,
-        bytes32 data)
+        double amountSpecified,
+        double sqrtPriceLimitX96)
     {
-        double sqrtPriceLimitX96 = raw_sqrtPriceLimitX96.X96ToDouble();
-        double amountSpecified   = raw_amountSpecified.ToDouble();
 
         require(fabs(amountSpecified) > EPS, "AS");
 
         Slot0_float slot0Start(slot0.sqrtPriceX96, slot0.tick);
-
+/*
         require(
             zeroForOne
                 ? raw_sqrtPriceLimitX96 < slot0.sqrtPriceX96 && raw_sqrtPriceLimitX96 > MIN_SQRT_RATIO
                 : raw_sqrtPriceLimitX96 > slot0.sqrtPriceX96 && raw_sqrtPriceLimitX96 < MAX_SQRT_RATIO,
             "SPL"
         );
-/*
+
         std::cerr << sqrtPriceLimitX96 << std::endl;
 
         if(

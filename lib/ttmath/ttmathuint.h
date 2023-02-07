@@ -3114,6 +3114,7 @@ public:
 		for(uint i = 0; i <= table_id; i++) {
 			uint width = (i == table_id ? index : TTMATH_BITS_PER_UINT);
 			unsigned long long bits = table[i] & ((1ull << width) - 1);
+			if(width > 52) { bits >>= (width - 52); width = 52; }
 			mantissa >>= width;
 			mantissa |= (bits << (52 - width));
 		}

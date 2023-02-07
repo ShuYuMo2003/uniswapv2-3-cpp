@@ -23,7 +23,7 @@ std::pair<uint256, uint256> swapWithCheck(
     address a,
     bool zeroToOne,
     int256 amountSpecified,
-    uint160 d,
+    uint160 sqrtPriceLimitX96,
     bytes32 e,
     long long & timer)
 { // recover the comments below to test the switch of the effects on pool state.
@@ -65,9 +65,9 @@ std::pair<uint256, uint256> swapWithCheck(
 */
 
 // not calc time:
-    auto ret0 = pool.swap_effectless(a, zeroToOne, amountSpecified, d, e);
+    auto ret0 = pool.swap_effectless(zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble());
 
-    auto ret1 = pool.swap(a, zeroToOne, amountSpecified, d, e);
+    auto ret1 = pool.swap(a, zeroToOne, amountSpecified, sqrtPriceLimitX96, e);
 
     double diffe;
     // bool fail = false;
