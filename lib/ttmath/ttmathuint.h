@@ -3112,17 +3112,25 @@ public:
 		exponent = index + table_id * TTMATH_BITS_PER_UINT + 1023;
 
 		for(uint i = 0; i <= table_id; i++) {
-			uint width = (i == table_id ? index : TTMATH_BITS_PER_UINT);
-			unsigned long long bits = table[i] & ((1ull << width) - 1);
-			if(width > 52) { bits >>= (width - 52); width = 52; }
-			mantissa >>= width;
-			mantissa |= (bits << (52 - width));
+			uint width; unsigned long long bits;
+			mantissa &= ((1ull << 52) - 1ull);
+			if(i == table_id) {
+				width = index;
+				bits = table[i] & ((1ull << width) - 1ull);
+			} else {
+				width = TTMATH_BITS_PER_UINT;
+				bits = table[i];
+			}
+			if(width > 52) {
+				bits >>= (width - 52);
+				mantissa = bits;
+			} else {
+				mantissa >>= width;
+				mantissa |= (bits << (52 - width));
+			}
 		}
-
-		// mantissa >>= (64 - 52); // Extra bits have to be ignore.
-
 		unsigned long long result = 0;
-		result = (exponent << 52) | mantissa;
+		result = (exponent << 52) | (mantissa & ((1ull << 52) - 1ull));
 		return *(double*)(&result);
 	}
 

@@ -5,9 +5,9 @@
 
 
 int main(){
-    uint160 aim("123456789123456789");
+    uint160 aim("123456712398462189123456789");
 
 
     printf("%.10lf\n", aim.ToDouble());
-    printf("%.50lf\n", aim.X96ToDouble());
+    // printf("%.50lf\n", aim.X96ToDouble());
 }
