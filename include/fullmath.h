@@ -49,9 +49,7 @@ FloatType mulDivRoundingUp(
     FloatType denominator
 ) {
     long double _a = a, _b = b;
-    long double ret = _a * _b / denominator;
-    // require(ret < MAX_UINT256_FLOAT);
-    return ret;
+    return ceil(_a * _b / denominator);
 }
 
 #endif

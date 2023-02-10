@@ -217,11 +217,15 @@ std::pair<FloatType, FloatType> swap(
     );
 
     // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
-    FloatType lastAmountSpecifiedRemaining = 0;
+    double lastAmountSpecifiedRemaining = 0;
+    int cnt = 0;
 
-    while ((fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) > EPS)
-        && fabs(state.amountSpecifiedRemaining) > EPS
+    while (fabs(state.amountSpecifiedRemaining) > EPS
+        && amountSpecified * state.amountSpecifiedRemaining > 0
         && fabs(state.sqrtPriceX96 - sqrtPriceLimitX96) > EPS) {
+
+        cnt += fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) < EPS;
+        if (cnt > 2) break;
 
         lastAmountSpecifiedRemaining = state.amountSpecifiedRemaining;
 

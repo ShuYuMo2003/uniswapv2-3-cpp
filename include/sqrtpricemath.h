@@ -224,9 +224,7 @@ FloatType getAmount1Delta(
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
     if (roundUp) {
-        // CHECK: the value of following expression may need to be passed to `ceil()`.
-        // I am not sure which one is better.
-        return liquidity * (sqrtRatioBX96 - sqrtRatioAX96);
+        return round(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
     } else {
         return floor(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
     }

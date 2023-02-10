@@ -12,7 +12,7 @@ long long getTimeNs() {
     return 1LL * clock() * 1000 * 1000 * 1000 / CLOCKS_PER_SEC; // ns
 }
 
-const int repeatTimes = 100000;
+const int repeatTimes = 1000;
 double MAX_DIFF = -1;
 double TOT_DIFF = 0;
 int    TOT_CNT  = 0;
@@ -54,65 +54,72 @@ std::pair<uint256, uint256> swapWithCheck(
     // std::cout << ret1.first << " " << ret1.second << std:: endl;
     // cls && g++ pool_test.cpp -o a -Wall -std=c++17 -O3 && .\a
     // std::cerr << "================================================= END ============================================" << std::endl << std::endl;
-/*
+
 // calc time:
-    std::pair<double, double> ret0;
-    timer = getTimeNs();
-    for(int i = 0; i < repeatTimes; i++)
-        ret0 = pool.swap_effectless(a, b, c, d, e);
-    // assert(timer != getTimeNs());
-    timer = double(getTimeNs() - timer) / repeatTimes;
-*/
+    // std::pair<double, double> ret_;
+    // timer = getTimeNs();
+    // for(int i = 0; i < repeatTimes; i++)
+    //     ret_ = pool.swap_effectless(a, zeroToOne, amountSpecified, d, e);
+    // timer = double(getTimeNs() - timer) / repeatTimes;
+
 
 // not calc time:
-    // auto ret0 = pool.swap_effectless(zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble());
+    auto ret0 = pool.swap_effectless(zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble());
 
     auto ret1 = swap(pool, zeroToOne, amountSpecified, sqrtPriceLimitX96, true);
 
-    // double diffe;
-    // // bool fail = false;
-    // if (zeroToOne^(amountSpecified > 0)) {
-    //     diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(fabs(ret0.second), fabs(ret1.second.ToDouble()))  );
-    // } else {
-    //     diffe = fabs(  (ret1.first.ToDouble() - ret0.first) / std::max(fabs(ret0.first), fabs(ret1.first.ToDouble()))  );
-    // }
+    double diffe;
+    if (zeroToOne^(amountSpecified > 0)) {
+        diffe = fabs(  (ret1.second.ToDouble() - ret0.second) / std::max(fabs(ret0.second), fabs(ret1.second.ToDouble()))  );
+    } else {
+        diffe = fabs(  (ret1.first.ToDouble() - ret0.first) / std::max(fabs(ret0.first), fabs(ret1.first.ToDouble()))  );
+    }
 
-    // if(diffe < 0.000001 || (ret1.first > -100000 && ret1.first < 100000) || (ret1.second > -100000 && ret1.second < 100000)) {
-    //     MAX_DIFF = std::max(MAX_DIFF, diffe);
-    //     TOT_DIFF += diffe; TOT_CNT ++;
-    // } else {
-    //     static char buffer[1000];
-    //     sprintf(buffer, "\n\n================================================= FAIL ============================================\n"
-    //                     "%.30lf %.30lf\n%.30lf %.30lf\n",
-    //             ret0.first, ret0.second, ret1.first.ToDouble(), ret1.second.ToDouble());
-    //     std::cerr << buffer << std::endl;
-    //     exit(0);
-    // }
+    if(diffe < 0.001 || (ret1.first > -1000 && ret1.first < 1000) || (ret1.second > -1000 && ret1.second < 1000)) {
+        if ((ret1.first > 1000 || ret1.first < -1000) && (ret1.second > 1000 || ret1.second < -1000)) {
+            // if (diffe > 0.001) std::cout << ret1.first << " " << ret1.second << " " << diffe << std::endl;
+            MAX_DIFF = std::max(MAX_DIFF, diffe);
+            TOT_DIFF += diffe; TOT_CNT ++;
+        }
+    } else {
+        static char buffer[1000];
+        sprintf(buffer, "\n\n================================================= FAIL ============================================\n"
+                        "%.30lf %.30lf\n%.30lf %.30lf\n",
+                ret0.first, ret0.second, ret1.first.ToDouble(), ret1.second.ToDouble());
+        std::cerr << buffer << std::endl;
+        exit(0);
+    }
 
 
     return ret1;
 }
 
 int main(int argc, char *argv[]) {
-    std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(0);
+    std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(20);
     std::cerr << "Initializing tick price" << std::endl;
     initializeTicksPrice();
     std::cerr << "Tick price initialized" << std::endl;
     std::ios::sync_with_stdio(false);
-    freopen("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640_events", "r", stdin);
+    if (argc > 1) {
+        freopen("pool_events_test", "r", stdin);
+    } else {
+        freopen("pool_events_test_", "r", stdin);
+    }
     int fee, tickSpacing;
     uint256 maxLiquidityPerTick;
     std::cin >> fee >> tickSpacing >> maxLiquidityPerTick;
     Pool<false> pool;
     int stBlock = 0;
     if (argc > 1) {
-        stBlock = atoi(argv[1]);
-        std::ifstream fin(argv[2]);
+        // stBlock = atoi(argv[1]);
+        // std::ifstream fin(argv[2]);
+        std::ifstream fin(argv[1]);
         fin >> pool;
         fin.close();
     } else {
         pool = Pool<false>(fee, tickSpacing, maxLiquidityPerTick);
     }
+    // std::cout << pool.slot0 << std::endl;
     // pool.save("tmp0");
     uint256 ruamount0, ruamount1;
     int256 ramount0, ramount1;
@@ -128,14 +135,15 @@ int main(int argc, char *argv[]) {
         std::cin >> sender; msg.sender.FromString(sender);
         ++t;
         // std::cerr << "Got contract = " << met << " No." << (t) << std::endl;
-        if(t % 3000 == 0) std::cerr << "to handle " << t << std::endl;
+        if(t % 200000 == 0) std::cerr << "to handle " << t << std::endl;
         if (met == "initialize") std::cin >> price >> tick;
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;
         else if (met == "burn") std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
         std::cin >> blockNum;
         // int lim = 1268728;
-        if (blockNum <= stBlock) continue;
+        // if (blockNum <= stBlock) continue;
+        // if (t <= 2640775) continue;
         // else if (t == lim) { pool = Pool("tmp" + std::to_string(t)); continue; }
         // std::cout << t << " " << met << std::endl;
         if (met == "initialize") {
@@ -210,13 +218,17 @@ int main(int argc, char *argv[]) {
         // pool.slot0.sqrtPriceX96.PrintTable(std::cout);
         // std::cout << std::endl;
         // std::cout << "liquidity: " << pool.liquidity << std::endl;
+        // if (t > 2641960) {
+        //     std::cout << t << std::endl;
+        //     pool.save("pool_state");
+        // }
+        // pool.save("pool_state_" + std::to_string(blockNum));
     }
     std::cout << "\n\n" << std::endl;
     for (int i = 0; i < 4; ++i) {
         std::cout << i << " " << cnt[i] << " " << timeCnt[i] << std::endl;
     }
     std::cout << "============= Timer ============" << std::endl;
-    std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(6);
     std::cout << "init: \t" << ((long double) (timeCnt[0]) / cnt[0])  << " ns/opt" << std::endl;
     std::cout << "mint: \t" << ((long double) (timeCnt[1]) / cnt[1])  << " ns/opt" << std::endl;
     std::cout << "swap: \t" << ((long double) (timeCnt[2]) / cnt[2])  << " ns/opt" << std::endl;

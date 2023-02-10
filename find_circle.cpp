@@ -158,7 +158,7 @@ int main() {
         E[v].push_back({UniswapV3, v, u, i, 0});
     }
     uint256 lim_amount = 1; for (int i = 0; i < 40; ++i) lim_amount *= 2;
-    std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(6);
+    std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(30);
     for (uint256 init_amount = 10000; init_amount <= lim_amount; init_amount = init_amount * 15 / 10) {
         // std::cout << init_amount << std::endl;
         int st = 0, lst = V3Pool::swap_cnt;
