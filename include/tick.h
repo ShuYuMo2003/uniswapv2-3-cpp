@@ -22,6 +22,10 @@ struct Tick {
     // these 8 bits are set to prevent fresh sstores when crossing newly initialized ticks
     bool initialized;
     Tick() { liquidityGross = 0, liquidityNet = 0, initialized = 0; }
+    Tick(const typename std::conditional<enable_float, FloatType, uint128>::type & liquidityGross,
+         const typename std::conditional<enable_float, FloatType, int128>::type & liquidityNet,
+         const bool & initialized) : liquidityGross(liquidityGross), liquidityNet(liquidityNet), initialized(initialized)
+        {  }
     friend std::istream& operator>>(std::istream& is, Tick& tick) {
         is >> tick.liquidityGross >> tick.liquidityNet
             >> tick.initialized;

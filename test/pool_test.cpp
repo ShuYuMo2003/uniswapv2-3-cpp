@@ -64,7 +64,10 @@ std::pair<uint256, uint256> swapWithCheck(
 
 
 // not calc time:
-    auto ret0 = pool.swap_effectless(zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble());
+    Pool<true> _PoolFloat;
+    Pool<true> *PoolFloat = &_PoolFloat;
+    GenerateFloatPool(pool, PoolFloat);
+    auto ret0 = swap(PoolFloat, zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble(), true);
 
     auto ret1 = swap(pool, zeroToOne, amountSpecified, sqrtPriceLimitX96, true);
 

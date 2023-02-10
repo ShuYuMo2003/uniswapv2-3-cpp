@@ -60,6 +60,37 @@ struct Pool{
     }
 };
 
+void GenerateFloatPool(const Pool<false> * from, Pool<true> * to) {
+/*
+    uint24 fee;
+    int24 tickSpacing;
+    LiquidityType maxLiquidityPerTick;
+    Slot0<enable_float> slot0;
+    LiquidityType liquidity;
+    Ticks<enable_float> ticks;
+    TickBitMapBaseOnVector tickBitmap;
+*/
+    to->fee                 = from->fee;
+    to->tickSpacing         = from->tickSpacing;
+    to->maxLiquidityPerTick = from->maxLiquidityPerTick.ToDouble();
+    to->slot0.sqrtPriceX96  = from->slot0.sqrtPriceX96.X96ToDouble();
+    to->slot0.tick          = from->slot0.tick;
+    to->liquidity           = from->liquidity.ToDouble();
+
+    to->ticks.data.clear();
+    for(const auto & [key, value] : from->ticks.data){
+        to->ticks.data[key] = Tick<true>(value.liquidityGross.ToDouble(),
+                                         value.liquidityNet.ToDouble(),
+                                         value.initialized);
+    }
+
+    to->tickBitmap.validCache = false;
+    to->tickBitmap.data.clear();
+    for(const auto & d : from->tickBitmap.data) {
+        to->tickBitmap.data.push_back(d);
+    }
+}
+
 template<bool enable_float>
 std::istream& operator>>(std::istream& is, Pool<enable_float>& pool) {
     is >> pool.fee >> pool.tickSpacing >> pool.maxLiquidityPerTick
