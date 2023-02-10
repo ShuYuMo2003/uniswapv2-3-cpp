@@ -17,7 +17,7 @@ const uint BUFFER_SIZE = (MAX_TICK << 1) + 20;
 const uint shift = MAX_TICK;
 bool ticks_price_initialized = false;
 uint160 getSqrtRatioAtTickMemory[BUFFER_SIZE];
-double getSqrtRatioAtTickMemory_float[BUFFER_SIZE];
+FloatType getSqrtRatioAtTickMemory_float[BUFFER_SIZE];
 void initializeTicksPrice() {
     FILE * TickCacheFileHandle = fopen("TickCache.dat", "rb");
     if(TickCacheFileHandle != NULL) {
@@ -71,10 +71,20 @@ void initializeTicksPrice() {
 /// @param tick The input tick for the above formula
 /// @return sqrtPriceX96 A Fixed point Q64.96 number representing the sqrt of the ratio of the two assets (token1/token0)
 /// at the given tick
-uint160 getSqrtRatioAtTick(int24 tick) {
+
+
+template<typename T> //getSqrtRatioAtTick < The type of return value you want. >
+T getSqrtRatioAtTick(int24 tick) {
     require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
     require(MIN_TICK <= tick && tick <= MAX_TICK, "TICK0");
     return getSqrtRatioAtTickMemory[tick + shift];
+}
+
+template<>
+FloatType getSqrtRatioAtTick<FloatType>(int24 tick) {
+    require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
+    require(MIN_TICK <= tick && tick <= MAX_TICK, "TICK0");
+    return getSqrtRatioAtTickMemory_float[tick + shift];
 }
 
 /// @notice Calculates the greatest tick value such that getRatioAtTick(tick) <= ratio
@@ -82,7 +92,7 @@ uint160 getSqrtRatioAtTick(int24 tick) {
 /// ever return.
 /// @param sqrtPriceX96 The sqrt ratio for which to compute the tick as a Q64.96
 /// @return tick The greatest tick for which the ratio is less than or equal to the input ratio
-int24 getTickAtSqrtRatio_float(double sqrtPriceX96) {
+int24 getTickAtSqrtRatio(FloatType sqrtPriceX96) {
     require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
     return (std::upper_bound(getSqrtRatioAtTickMemory_float,
                         getSqrtRatioAtTickMemory_float + (MAX_TICK << 1 | 1) + 1,

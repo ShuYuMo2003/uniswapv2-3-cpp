@@ -1,5 +1,6 @@
 #ifndef headerfileutil
 #define headerfileutil
+#include <cmath>
 
 #ifndef NDEBUG
 #   define ASSERT(condition, message) \
@@ -21,4 +22,10 @@ void require(bool condition, std::string msg = "") {
     ASSERT(condition, "msg: " << msg);
 }
 
+
+template<typename T>
+bool isZero(T & o) { return o == 0; }
+
+template<>
+bool isZero<FloatType>(FloatType & o) { return fabs(o) < EPS; }
 #endif

@@ -19,7 +19,7 @@ int    TOT_CNT  = 0;
 
 
 std::pair<uint256, uint256> swapWithCheck(
-    Pool & pool,
+    Pool<false> * pool,
     address a,
     bool zeroToOne,
     int256 amountSpecified,
@@ -67,7 +67,7 @@ std::pair<uint256, uint256> swapWithCheck(
 // not calc time:
     // auto ret0 = pool.swap_effectless(zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble());
 
-    auto ret1 = pool.swap(a, zeroToOne, amountSpecified, sqrtPriceLimitX96, e);
+    auto ret1 = swap(pool, zeroToOne, amountSpecified, sqrtPriceLimitX96, true);
 
     // double diffe;
     // // bool fail = false;
@@ -99,11 +99,11 @@ int main(int argc, char *argv[]) {
     initializeTicksPrice();
     std::cerr << "Tick price initialized" << std::endl;
     std::ios::sync_with_stdio(false);
-    freopen("pool_events_test", "r", stdin);
+    freopen("0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640_events", "r", stdin);
     int fee, tickSpacing;
     uint256 maxLiquidityPerTick;
     std::cin >> fee >> tickSpacing >> maxLiquidityPerTick;
-    Pool pool;
+    Pool<false> pool;
     int stBlock = 0;
     if (argc > 1) {
         stBlock = atoi(argv[1]);
@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
         fin >> pool;
         fin.close();
     } else {
-        pool = Pool(fee, tickSpacing, maxLiquidityPerTick);
+        pool = Pool<false>(fee, tickSpacing, maxLiquidityPerTick);
     }
     // pool.save("tmp0");
     uint256 ruamount0, ruamount1;
@@ -141,14 +141,14 @@ int main(int argc, char *argv[]) {
         if (met == "initialize") {
             cnt[0]++;
             long long start = getTimeNs();
-            int r = pool.initialize(price);
+            int r = initialize(&pool, price);
             // std::cout << price << " " << r << " " << tick << std::endl;
             assert(r == tick);
             timeCnt[0] += getTimeNs() - start;
         } else if (met == "mint") {
             cnt[1]++;
             long long start = getTimeNs();
-            std::tie(ruamount0, ruamount1) = pool.mint(sender, tickLower, tickUpper, liquidity, "");
+            std::tie(ruamount0, ruamount1) = mint(&pool, sender, tickLower, tickUpper, liquidity, "");
             timeCnt[1] += getTimeNs() - start;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
@@ -163,13 +163,13 @@ int main(int argc, char *argv[]) {
             for (int i = 0; i < 3; ++i) {
                 if (i) pool = back;
                 // std::cout << "================= Swap attempt " << (i + 1) << "==================\n";
-                if (i == 0) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount, _price, "", timer);
+                if (i == 0) std::tie(ramount0, ramount1) = swapWithCheck(&pool, sender, zeroToOne, amount, _price, "", timer);
                 else if (i == 1) {
                     std::string k = zeroToOne ? amount1 : amount0;
                     if (k == "0") continue;
-                    std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, k, _price, "", timer);
+                    std::tie(ramount0, ramount1) = swapWithCheck(&pool, sender, zeroToOne, k, _price, "", timer);
                 }
-                else if (i == 2) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount + "0", price, "", timer);
+                else if (i == 2) std::tie(ramount0, ramount1) = swapWithCheck(&pool, sender, zeroToOne, amount + "0", price, "", timer);
                 // std::cout << "amount0: " << ramount0 << " " << amount0 << std::endl;
                 // std::cout << "amount1: " << ramount1 << " " << amount1 << std::endl;
                 // std::cout << "liquidity: " << pool.liquidity << " " << liquidity << std::endl;
@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
         } else if (met == "burn") {
             cnt[3]++;
             long long start = getTimeNs();
-            std::tie(ruamount0, ruamount1) = pool.burn(tickLower, tickUpper, amount);
+            std::tie(ruamount0, ruamount1) = burn(&pool, tickLower, tickUpper, amount);
             // std::cout << tickLower << " " << tickUpper << " " << amount << std::endl;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;

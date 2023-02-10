@@ -19,8 +19,8 @@ uint128 addDelta(uint128 x, int128 y) {
     return z;
 }
 
-double addDelta_float(double x, double y) {
-    double z;
+FloatType addDelta(FloatType x, FloatType y) {
+    FloatType z;
     z = x + y;
     // require(z > 0 && z <= MAX_UINT128_FLOAT, "LI25");
     return z;

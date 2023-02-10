@@ -1,9 +1,13 @@
 #ifndef headerfilefullmath
 #define headerfilefullmath
 #include <cmath>
-#include "helper.h"
 #include "types.h"
 #include "util.h"
+
+uint256 mulmod(uint256 a, uint256 b, uint256 denominator) {
+    uint512 r = a; r *= b;
+    return r % denominator;
+}
 
 /// @notice Calculates floor(a×b÷denominator) with full precision. Throws if result overflows a uint256 or denominator == 0
 /// @param a The multiplicand
@@ -16,7 +20,7 @@ uint256 mulDiv(uint256 a, uint256 b, uint256 denominator) {
     return _a * _b / denominator;
 }
 
-double mulDiv_float(double a, double b, double denominator) {
+FloatType mulDiv(FloatType a, FloatType b, FloatType denominator) {
     long double _a = a, _b = b;
     return floor(_a * _b / denominator);
 }
@@ -39,13 +43,15 @@ uint256 mulDivRoundingUp(
     return result;
 }
 
-double mulDivRoundingUp_float(
-    double a,
-    double b,
-    double denominator
+FloatType mulDivRoundingUp(
+    FloatType a,
+    FloatType b,
+    FloatType denominator
 ) {
     long double _a = a, _b = b;
-    return (_a * _b / denominator);
+    long double ret = _a * _b / denominator;
+    // require(ret < MAX_UINT256_FLOAT);
+    return ret;
 }
 
 #endif

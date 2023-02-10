@@ -26,12 +26,6 @@ uint160 getNextSqrtPriceFromAmount0RoundingUp(
     uint256 amount,
     bool add
 ) {
-
-    // printf("\nNow At getNextSqrtPriceFromAmount0RoundingUp\n");
-    // printf("\t%.2lf\n", sqrtPX96.X96ToDouble());
-    // printf("\t%.2lf\n", liquidity.ToDouble());
-    // printf("\t%.2lf\n", amount.ToDouble());
-    // printf("\t%d\n", add);
     // we short circuit amount == 0 because the result is otherwise not guaranteed to equal the input price
     if (amount == 0) return sqrtPX96;
     uint256 numerator1 = uint256(liquidity) << RESOLUTION;
@@ -57,39 +51,34 @@ uint160 getNextSqrtPriceFromAmount0RoundingUp(
     }
 }
 
-double getNextSqrtPriceFromAmount0RoundingUp_float(
-    double sqrtPX96,
-    double liquidity,
-    double amount,
+FloatType getNextSqrtPriceFromAmount0RoundingUp(
+    FloatType sqrtPX96,
+    FloatType liquidity,
+    FloatType amount,
     bool add
 ) {
-    // printf("\nNow At getNextSqrtPriceFromAmount0RoundingUp\n");
-    // printf("\t%.2lf\n", sqrtPX96);
-    // printf("\t%.2lf\n", liquidity);
-    // printf("\t%.2lf\n", amount);
-    // printf("\t%d\n", add);
     // we short circuit amount == 0 because the result is otherwise not guaranteed to equal the input price
     if (fabs(amount) < EPS) return sqrtPX96;
-    double numerator1 = liquidity;
+    FloatType numerator1 = liquidity;
 
     if (add) {
-        double product;
+        FloatType product;
         if (fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS) {
             // puts("CASE 0");
-            double denominator = numerator1 + product;
+            FloatType denominator = numerator1 + product;
             if (denominator >= numerator1)
                 // always fits in 160 bits
-                return mulDivRoundingUp_float(numerator1, sqrtPX96, denominator);
+                return mulDivRoundingUp(numerator1, sqrtPX96, denominator);
         }
 
-        return divRoundingUp_float(numerator1, floor(numerator1 / sqrtPX96) + amount);
+        return divRoundingUp(numerator1, floor(numerator1 / sqrtPX96) + amount);
     } else {
-        double product;
+        FloatType product;
         // if the product overflows, we know the denominator underflows
         // in addition, we must check that the denominator does not underflow
         require(fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS && numerator1 > product, "POO");
-        double denominator = numerator1 - product;
-        return mulDivRoundingUp_float(numerator1, sqrtPX96, denominator);
+        FloatType denominator = numerator1 - product;
+        return mulDivRoundingUp(numerator1, sqrtPX96, denominator);
     }
 }
 
@@ -132,20 +121,20 @@ uint160 getNextSqrtPriceFromAmount1RoundingDown(
     }
 }
 
-double getNextSqrtPriceFromAmount1RoundingDown_float(
-    double sqrtPX96,
-    double liquidity,
-    double amount,
+FloatType getNextSqrtPriceFromAmount1RoundingDown(
+    FloatType sqrtPX96,
+    FloatType liquidity,
+    FloatType amount,
     bool add
 ) {
     // if we're adding (subtracting), rounding down requires rounding the quotient down (up)
     // in both cases, avoid a mulDiv for most inputs
     if (add) {
-        double quotient = amount / liquidity;
+        FloatType quotient = amount / liquidity;
 
         return sqrtPX96 + quotient;
     } else {
-        double quotient = amount / liquidity;
+        FloatType quotient = amount / liquidity;
 
         require(sqrtPX96 > quotient, "QAQ");
         // always fits 160 bits
@@ -184,23 +173,23 @@ uint256 getAmount0Delta(
     }
 }
 
-double getAmount0Delta_float(
-    double sqrtRatioAX96,
-    double sqrtRatioBX96,
-    double liquidity,
+FloatType getAmount0Delta(
+    FloatType sqrtRatioAX96,
+    FloatType sqrtRatioBX96,
+    FloatType liquidity,
     bool roundUp
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
-    double numerator1 = liquidity;
-    double numerator2 = sqrtRatioBX96 - sqrtRatioAX96;
+    FloatType numerator1 = liquidity;
+    FloatType numerator2 = sqrtRatioBX96 - sqrtRatioAX96;
 
     require(sqrtRatioAX96 > 0, "QWQ");
 
     if (roundUp) {
-        return ceil(mulDivRoundingUp_float(numerator1, numerator2, sqrtRatioBX96) / sqrtRatioAX96);
+        return ceil(mulDivRoundingUp(numerator1, numerator2, sqrtRatioBX96) / sqrtRatioAX96);
     } else {
-        return (mulDiv_float(numerator1, numerator2, sqrtRatioBX96) / sqrtRatioAX96);
+        return (mulDiv(numerator1, numerator2, sqrtRatioBX96) / sqrtRatioAX96);
     }
 }
 
@@ -226,10 +215,10 @@ uint256 getAmount1Delta(
     }
 }
 
-double getAmount1Delta_float(
-    double sqrtRatioAX96,
-    double sqrtRatioBX96,
-    double liquidity,
+FloatType getAmount1Delta(
+    FloatType sqrtRatioAX96,
+    FloatType sqrtRatioBX96,
+    FloatType liquidity,
     bool roundUp
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
@@ -302,10 +291,10 @@ uint160 getNextSqrtPriceFromInput(
             : getNextSqrtPriceFromAmount1RoundingDown(sqrtPX96, liquidity, amountIn, true);
 }
 
-double getNextSqrtPriceFromInput_float(
-    double sqrtPX96,
-    double liquidity,
-    double amountIn,
+FloatType getNextSqrtPriceFromInput(
+    FloatType sqrtPX96,
+    FloatType liquidity,
+    FloatType amountIn,
     bool zeroForOne
 ) {
     // std::cout << "------?? " << sqrtPX96 << " " << liquidity << " " << amountIn << " " << zeroForOne << std::endl;
@@ -320,8 +309,8 @@ double getNextSqrtPriceFromInput_float(
     // round to make sure that we don't pass the target price
     return
         zeroForOne
-            ? getNextSqrtPriceFromAmount0RoundingUp_float(sqrtPX96, liquidity, amountIn, true)
-            : getNextSqrtPriceFromAmount1RoundingDown_float(sqrtPX96, liquidity, amountIn, true);
+            ? getNextSqrtPriceFromAmount0RoundingUp(sqrtPX96, liquidity, amountIn, true)
+            : getNextSqrtPriceFromAmount1RoundingDown(sqrtPX96, liquidity, amountIn, true);
 }
 
 /// @notice Gets the next sqrt price given an output amount of token0 or token1
@@ -347,10 +336,10 @@ uint160 getNextSqrtPriceFromOutput(
             : getNextSqrtPriceFromAmount0RoundingUp(sqrtPX96, liquidity, amountOut, false);
 }
 
-double getNextSqrtPriceFromOutput_float(
-    double sqrtPX96,
-    double liquidity,
-    double amountOut,
+FloatType getNextSqrtPriceFromOutput(
+    FloatType sqrtPX96,
+    FloatType liquidity,
+    FloatType amountOut,
     bool zeroForOne
 ) {
     require(sqrtPX96 > 0, "IEEE");
@@ -359,8 +348,8 @@ double getNextSqrtPriceFromOutput_float(
     // round to make sure that we pass the target price
     return
         zeroForOne
-            ? getNextSqrtPriceFromAmount1RoundingDown_float(sqrtPX96, liquidity, amountOut, false)
-            : getNextSqrtPriceFromAmount0RoundingUp_float(sqrtPX96, liquidity, amountOut, false);
+            ? getNextSqrtPriceFromAmount1RoundingDown(sqrtPX96, liquidity, amountOut, false)
+            : getNextSqrtPriceFromAmount0RoundingUp(sqrtPX96, liquidity, amountOut, false);
 }
 
 #endif

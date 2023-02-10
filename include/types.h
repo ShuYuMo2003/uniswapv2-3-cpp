@@ -6,6 +6,8 @@
 #include "../lib/ttmath/ttmathint.h"
 #include "../lib/ttmath/ttmathuint.h"
 
+#define FloatType double
+
 typedef unsigned int uint;
 typedef uint uint8;
 typedef uint uint16;
@@ -25,25 +27,10 @@ typedef ttmath::Int<8> int256;
 
 typedef std::string bytes32;
 
-struct Slot0_float {
-    // the current price
-    double sqrtPriceX96;
-    // the current tick
-    int24 tick;
-    Slot0_float() { sqrtPriceX96 = 0; }
-    Slot0_float(
-        uint160 sqrtPriceX96,
-        int24 tick
-    ) : sqrtPriceX96(sqrtPriceX96.X96ToDouble()),
-        tick(tick)
-        {
-
-    }
-};
-
+template<bool enable_float>
 struct Slot0 {
     // the current price
-    uint160 sqrtPriceX96;
+    typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceX96;
     // the current tick
     int24 tick;
     // the most-recently updated index of the observations array
@@ -57,7 +44,7 @@ struct Slot0 {
     // uint8 feeProtocol;
     Slot0() { sqrtPriceX96 = 0; }
     Slot0(
-        uint160 sqrtPriceX96,
+        typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceX96,
         int24 tick
         // uint16 observationIndex,
         // uint16 observationCardinality,
@@ -97,96 +84,27 @@ struct Slot0 {
     }
 };
 
-struct SwapCache_float {
-    // the protocol fee for the input token
-    // uint8 feeProtocol;
-    // liquidity at the beginning of the swap
-    double liquidityStart;
-    SwapCache_float(uint128 liquidityStart) : liquidityStart(liquidityStart.ToDouble()) {
 
-    }
-};
-
-struct SwapCache {
-    // the protocol fee for the input token
-    // uint8 feeProtocol;
-    // liquidity at the beginning of the swap
-    uint128 liquidityStart;
-    // the timestamp of the current block
-    // uint32 blockTimestamp;
-    // the current value of the tick accumulator, computed only if we cross an initialized tick
-    // int56 tickCumulative;
-    // the current value of seconds per liquidity accumulator, computed only if we cross an initialized tick
-    // uint160 secondsPerLiquidityCumulativeX128;
-    // whether we've computed and cached the above two accumulators
-    // bool computedLatestObservation;
-
-    SwapCache(
-        // uint8 feeProtocol,
-        uint128 liquidityStart
-        // uint32 blockTimestamp,
-        // int56 tickCumulative,
-        // uint160 secondsPerLiquidityCumulativeX128,
-        // bool computedLatestObservation
-    ) : // feeProtocol(feeProtocol),
-        liquidityStart(liquidityStart)
-        // blockTimestamp(blockTimestamp),
-        // tickCumulative(tickCumulative),
-        // secondsPerLiquidityCumulativeX128(secondsPerLiquidityCumulativeX128),
-        // computedLatestObservation(computedLatestObservation)
-        {
-
-    }
-};
-
-struct SwapState_float {
-    double amountSpecifiedRemaining;
-    double amountCalculated;
-    double sqrtPriceX96;
-    int24 tick;
-    double liquidity;
-
-    SwapState_float(
-        double amountSpecifiedRemaining,
-        double amountCalculated,
-        double sqrtPriceX96,
-        int24 tick,
-        double liquidity
-    ) : amountSpecifiedRemaining(amountSpecifiedRemaining),
-        amountCalculated(amountCalculated),
-        sqrtPriceX96(sqrtPriceX96),
-        tick(tick),
-        liquidity(liquidity)
-    {
-
-    }
-};
-
-    // the top level state of the swap, the results of which are recorded in storage at the end
+// the top level state of the swap, the results of which are recorded in storage at the end
+template<bool enable_float>
 struct SwapState {
     // the amount remaining to be swapped in/out of the input/output asset
-    int256 amountSpecifiedRemaining;
+    typename std::conditional<enable_float, FloatType, int256>::type amountSpecifiedRemaining;
     // the amount already swapped out/in of the output/input asset
-    int256 amountCalculated;
+    typename std::conditional<enable_float, FloatType, int256>::type amountCalculated;
     // current sqrt(price)
-    uint160 sqrtPriceX96;
+    typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceX96;
     // the tick associated with the current price
     int24 tick;
-    // the global fee growth of the input token
-    // uint256 feeGrowthGlobalX128;
-    // amount of input token paid as protocol fee
-    // uint128 protocolFee;
     // the current liquidity in range
-    uint128 liquidity;
+    typename std::conditional<enable_float, FloatType, uint128>::type liquidity;
 
     SwapState(
-        int256 amountSpecifiedRemaining,
-        int256 amountCalculated,
-        uint160 sqrtPriceX96,
+        typename std::conditional<enable_float, FloatType, int256>::type  amountSpecifiedRemaining,
+        typename std::conditional<enable_float, FloatType, int256>::type  amountCalculated,
+        typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceX96,
         int24 tick,
-        // uint256 feeGrowthGlobalX128,
-        // uint128 protocolFee,
-        uint128 liquidity
+        typename std::conditional<enable_float, FloatType, uint128>::type liquidity
     ) : amountSpecifiedRemaining(amountSpecifiedRemaining),
         amountCalculated(amountCalculated),
         sqrtPriceX96(sqrtPriceX96),
@@ -199,38 +117,22 @@ struct SwapState {
     }
 };
 
-struct StepComputations_float {
-    // the price at the beginning of the step
-    double sqrtPriceStartX96;
-    // the next tick to swap to from the current tick in the swap direction
-    int24 tickNext;
-    // whether tickNext is initialized or not
-    bool initialized;
-    // sqrt(price) for the next tick (1/0)
-    double sqrtPriceNextX96;
-    // how much is being swapped in in this step
-    double amountIn;
-    // how much is being swapped out
-    double amountOut;
-    // how much fee is being paid in
-    double feeAmount;
-};
-
+template<bool enable_float>
 struct StepComputations {
     // the price at the beginning of the step
-    uint160 sqrtPriceStartX96;
+    typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceStartX96;
     // the next tick to swap to from the current tick in the swap direction
     int24 tickNext;
     // whether tickNext is initialized or not
     bool initialized;
     // sqrt(price) for the next tick (1/0)
-    uint160 sqrtPriceNextX96;
+    typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceNextX96;
     // how much is being swapped in in this step
-    uint256 amountIn;
+    typename std::conditional<enable_float, FloatType, uint256>::type amountIn;
     // how much is being swapped out
-    uint256 amountOut;
+    typename std::conditional<enable_float, FloatType, uint256>::type amountOut;
     // how much fee is being paid in
-    uint256 feeAmount;
+    typename std::conditional<enable_float, FloatType, uint256>::type feeAmount;
 };
 
 struct Block
@@ -252,6 +154,8 @@ struct Message
     uint256 value;
 };
 
+
+template<bool enable_float>
 struct ModifyPositionParams {
     // the address that owns the position
     address owner;
@@ -259,12 +163,12 @@ struct ModifyPositionParams {
     int24 tickLower;
     int24 tickUpper;
     // any change in liquidity
-    int128 liquidityDelta;
+    typename std::conditional<enable_float, FloatType, int128>::type liquidityDelta;
     ModifyPositionParams(
         address owner,
         int24 tickLower,
         int24 tickUpper,
-        int128 liquidityDelta
+        typename std::conditional<enable_float, FloatType, int128>::type liquidityDelta
     ) : owner(owner),
         tickLower(tickLower),
         tickUpper(tickUpper),
