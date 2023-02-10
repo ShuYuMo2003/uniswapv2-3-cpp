@@ -244,6 +244,15 @@ int256 getAmount0Delta(
     return getAmount0Delta(sqrtRatioAX96, sqrtRatioBX96, uint128(liquidity), true);
 }
 
+FloatType getAmount0Delta(
+    FloatType sqrtRatioAX96,
+    FloatType sqrtRatioBX96,
+    FloatType liquidity
+) {
+    if (liquidity < 0) return -getAmount0Delta(sqrtRatioAX96, sqrtRatioBX96, -liquidity, false);
+    return getAmount0Delta(sqrtRatioAX96, sqrtRatioBX96, liquidity, true);
+}
+
 /// @notice Helper that gets signed token1 delta
 /// @param sqrtRatioAX96 A sqrt price
 /// @param sqrtRatioBX96 Another sqrt price
@@ -258,6 +267,17 @@ int256 getAmount1Delta(
         liquidity < 0
             ? uint256(0) - getAmount1Delta(sqrtRatioAX96, sqrtRatioBX96, uint128(-liquidity), false)
             : getAmount1Delta(sqrtRatioAX96, sqrtRatioBX96, uint128(liquidity), true);
+}
+
+FloatType getAmount1Delta(
+    FloatType sqrtRatioAX96,
+    FloatType sqrtRatioBX96,
+    FloatType liquidity
+) {
+    return
+        liquidity < 0
+            ? -getAmount1Delta(sqrtRatioAX96, sqrtRatioBX96, -liquidity, false)
+            : getAmount1Delta(sqrtRatioAX96, sqrtRatioBX96, liquidity, true);
 }
 
 /// @notice Gets the next sqrt price given an input amount of token0 or token1
