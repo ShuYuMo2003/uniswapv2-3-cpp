@@ -133,9 +133,9 @@ std::tuple<double, double, double, double> computeSwapStep_float(
                 amountRemainingLessFee,
                 zeroForOne
             );
-        // printf("$1 = %.2lf\n", amountRemainingLessFee);
-        // printf("$2 = %.2lf\n", amountIn);
-        // printf("$3 = %.2lf\n", sqrtRatioNextX96);
+        // printf("$1 = %.20lf\n", amountRemainingLessFee);
+        // printf("$2 = %.20lf\n", amountIn);
+        // printf("$3 = %.20lf\n", sqrtRatioNextX96);
     } else {
         amountOut = zeroForOne
             ? getAmount1Delta_float(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, false)

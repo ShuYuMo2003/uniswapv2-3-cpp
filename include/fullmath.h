@@ -45,7 +45,7 @@ double mulDivRoundingUp_float(
     double denominator
 ) {
     long double _a = a, _b = b;
-    return (_a * _b / denominator);
+    return ceil(_a * _b / denominator);
 }
 
 #endif

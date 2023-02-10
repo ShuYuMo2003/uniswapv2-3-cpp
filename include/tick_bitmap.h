@@ -69,6 +69,7 @@ public:
         int24 tickSpace,
         bool lte
     ) {
+        // std::cout << "nextInitializedTickWithinOneWord: " << tick << " " << tickSpace << " " << lte << std::endl;
         // transform the real tick into the image of the tick in the tick space.
         if(tick < 0 && tick % tickSpace != 0) {
             // round towards negative infinity
@@ -259,7 +260,7 @@ public:
         } else {
             // start from the word of the next tick, since the current tick state doesn't matter
             auto [wordPos, bitPos] = position(compressed + 1);
-            // std::cout << compressed + 1 << " " << wordPos << " " << bitPos << std::endl;
+            std::cout << "??? " << compressed + 1 << " " << wordPos << " " << bitPos << std::endl;
             // all the 1s at or to the left of the bitPos
             uint256 mask = ~((uint256(1) << bitPos) - 1);
             if (data.find(wordPos) == data.end()) data[wordPos] = 0;

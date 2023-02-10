@@ -203,9 +203,14 @@ public:
 
             // compute values to swap to the target tick, price limit, or point where input/output amount is exhausted
 
-            // std::cout << "==== " << state.sqrtPriceX96 << " " << ((zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+            // std::cout << "==== computeSwapStepArgs:" << std::endl;
+            // std::cout << "sqrtPrice: " << state.sqrtPriceX96 << " " << state.sqrtPriceX96.X96ToDouble() << std::endl;
+            // std::cout << "sqrtPriceLimit " << ((zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
             //         ? sqrtPriceLimitX96
-            //         : step.sqrtPriceNextX96) << " " << state.liquidity << " " << state.amountSpecifiedRemaining << " " << fee << std::endl;
+            //         : step.sqrtPriceNextX96) << " " << ((zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+            //         ? sqrtPriceLimitX96.X96ToDouble()
+            //         : step.sqrtPriceNextX96.X96ToDouble()) << "\n";
+            // std::cout << state.liquidity << " " << state.amountSpecifiedRemaining << " " << fee << std::endl;
             std::tie(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = computeSwapStep(
                 state.sqrtPriceX96,
                 (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
@@ -361,34 +366,39 @@ public:
         double amountSpecified,
         double sqrtPriceLimitX96)
     {
+        // double sqrtPriceLimitX96 = raw_sqrtPriceLimitX96.X96ToDouble();
+        // std::cout << raw_sqrtPriceLimitX96 << " " << sqrtPriceLimitX96 << std::endl;
+        // double amountSpecified   = raw_amountSpecified.ToDouble();
+        // std::cout << raw_amountSpecified << " " << amountSpecified << std::endl;
 
         require(fabs(amountSpecified) > EPS, "AS");
 
         Slot0_float slot0Start(slot0.sqrtPriceX96, slot0.tick);
-/*
-        require(
-            zeroForOne
-                ? raw_sqrtPriceLimitX96 < slot0.sqrtPriceX96 && raw_sqrtPriceLimitX96 > MIN_SQRT_RATIO
-                : raw_sqrtPriceLimitX96 > slot0.sqrtPriceX96 && raw_sqrtPriceLimitX96 < MAX_SQRT_RATIO,
-            "SPL"
-        );
 
-        std::cerr << sqrtPriceLimitX96 << std::endl;
+        // std::cout << zeroForOne << " " << raw_sqrtPriceLimitX96 << " " << slot0.sqrtPriceX96
+        //     << " " << MIN_SQRT_RATIO << " " << MAX_SQRT_RATIO << std::endl;
 
-        if(
-            zeroForOne
-                ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > MIN_SQRT_RATIO_FLOAT
-                : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < MAX_SQRT_RATIO_FLOAT
-        ); else {
-            std::cout << "================================ FAIL ================================" << std::endl;
-            std::cout << zeroForOne << std::endl;
-            printf("Price = %.50lf\n", sqrtPriceLimitX96);
-            std::cout << sqrtPriceLimitX96 << " " << slot0Start.sqrtPriceX96 << " " << sqrtPriceLimitX96 << " " <<  MAX_SQRT_RATIO_FLOAT << std::endl;
-            assert(false);
-        }
+        // require(
+        //     zeroForOne
+        //         ? raw_sqrtPriceLimitX96 < slot0.sqrtPriceX96 && raw_sqrtPriceLimitX96 > MIN_SQRT_RATIO
+        //         : raw_sqrtPriceLimitX96 > slot0.sqrtPriceX96 && raw_sqrtPriceLimitX96 < MAX_SQRT_RATIO,
+        //     "SPL"
+        // );
 
-        // std::cerr <<
-*/
+        // std::cerr << sqrtPriceLimitX96 << std::endl;
+
+        // if(
+        //     zeroForOne
+        //         ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > MIN_SQRT_RATIO_FLOAT
+        //         : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < MAX_SQRT_RATIO_FLOAT
+        // ); else {
+        //     std::cout << "================================ FAIL ================================" << std::endl;
+        //     std::cout << zeroForOne << std::endl;
+        //     printf("Price = %.50lf\n", sqrtPriceLimitX96);
+        //     std::cout << sqrtPriceLimitX96 << " " << slot0Start.sqrtPriceX96 << " " << sqrtPriceLimitX96 << " " <<  MAX_SQRT_RATIO_FLOAT << std::endl;
+        //     assert(false);
+        // }
+
         // printf("START_PRICE = %.30lf\n", slot0Start.sqrtPriceX96);
 
         SwapCache_float cache = SwapCache_float(liquidity);
@@ -404,14 +414,19 @@ public:
             cache.liquidityStart
         );
 
+        // std::cout << liquidity << std::endl;
         // printf("liq:\n\t%.2lf\n\t%.2lf\n", cache.liquidityStart, state.liquidity);
 
         // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
         double lastAmountSpecifiedRemaining = 0;
+        int cnt = 0;
 
-        while ((fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) > EPS)
-            && fabs(state.amountSpecifiedRemaining) > EPS
+        while (fabs(state.amountSpecifiedRemaining) > EPS
+            && amountSpecified * state.amountSpecifiedRemaining > 0
             && fabs(state.sqrtPriceX96 - sqrtPriceLimitX96) > EPS) {
+
+            cnt += fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) < EPS;
+            if (cnt > 2) break;
 
             lastAmountSpecifiedRemaining = state.amountSpecifiedRemaining;
 
@@ -436,7 +451,9 @@ public:
             // get the price for the next tick
             step.sqrtPriceNextX96 = getSqrtRatioAtTick(step.tickNext).X96ToDouble();
 
-            // std::cout << "call" << std::endl;
+            // std::cout << "==== " << state.sqrtPriceX96 << " " << ((zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
+            //         ? sqrtPriceLimitX96
+            //         : step.sqrtPriceNextX96) << " " << state.liquidity << " " << state.amountSpecifiedRemaining << " " << fee << std::endl;
             std::tie(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = computeSwapStep_float(
                 state.sqrtPriceX96,
                 (zeroForOne ? step.sqrtPriceNextX96 < sqrtPriceLimitX96 : step.sqrtPriceNextX96 > sqrtPriceLimitX96)
@@ -447,10 +464,11 @@ public:
                 fee
             );
 
-            // printf("state.sqrtPriceX96: %.2lf\n", state.sqrtPriceX96);
-            // printf("step.amountIn: %.2lf\n", step.amountIn);
-            // printf("step.amountOut: %.2lf\n", step.amountOut);
-            // printf("step.feeAmount: %.2lf\n", step.feeAmount);
+            // std::cout << "state.sqrtPriceX96: " <<  state.sqrtPriceX96 << std::endl;
+            // std::cout << "step.amountIn: " << (step.amountIn)  << std::endl;
+            // std::cout << "step.amountOut: " << step.amountOut << std::endl;
+            // std::cout << "step.feeAmount: " << step.feeAmount << std::endl;
+            // std::cout << "---- " << state.sqrtPriceX96 << " " << step.amountIn << " " << step.amountOut << " " << step.feeAmount << std::endl;
 
 
             if (exactInput) {
