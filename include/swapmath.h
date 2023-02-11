@@ -94,11 +94,11 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
 
 
 std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
-    FloatType sqrtRatioCurrentX96,
-    FloatType sqrtRatioTargetX96,
-    FloatType liquidity,
-    FloatType amountRemaining,
-    uint24 feePips
+    const FloatType & sqrtRatioCurrentX96,
+    const FloatType & sqrtRatioTargetX96,
+    const FloatType & liquidity,
+    const FloatType & amountRemaining,
+    const uint24 & feePips
 ) {
 #ifdef DEBUG
     std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;

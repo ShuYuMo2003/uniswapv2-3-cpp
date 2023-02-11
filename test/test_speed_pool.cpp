@@ -7,7 +7,7 @@
 using namespace std;
 
 int UNI_DATA_SIZE = -1;
-const int TEST_TIME = 1e7;
+const int TEST_TIME = 2e7;
 
 int TOT_CNT = 0;
 double MAX_DIFF = -1, TOT_DIFF = 0;
@@ -36,7 +36,7 @@ vector<testcase> tc;
 vector<pair<double, double>> result;
 
 void generate(Pool<false> * pool) {
-    for(uint160 amount = 10; amount < uint160("94033269757636"); (amount *= 16) /= 10) {
+    for(uint160 amount = 10; amount < uint160("94033269757636"); (amount *= 18) /= 10) {
         testcase now;
         now.zeroToOne  =  1;
         now.raw_amount =  amount;
@@ -46,7 +46,7 @@ void generate(Pool<false> * pool) {
         tc.push_back(now);
         // cout << amount << endl;
     }
-    for(uint160 amount = 10; amount < uint160("65308223357628934551218"); (amount *= 16) /= 10) {
+    for(uint160 amount = 10; amount < uint160("65308223357628934551218"); (amount *= 18) /= 10) {
         testcase now;
         now.zeroToOne  =  0;
         now.raw_amount =  amount;
@@ -58,7 +58,7 @@ void generate(Pool<false> * pool) {
     }
     UNI_DATA_SIZE = tc.size();
     result.resize(UNI_DATA_SIZE);
-    random_shuffle(tc.begin(), tc.end());
+    // random_shuffle(tc.begin(), tc.end());
 }
 
 /*
@@ -67,7 +67,18 @@ WETH    (0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2) (1): 6530822335762893455121
 USD Coin(0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48) (0): 94033269757636
 */
 
+void TestCertainPoint(Pool<false> * pool0, Pool<true> * pool1, int256 amount, bool zeroToOne){
+    static uint160 SQPRL = uint160("4295128740");
+    static uint160 SQPRR = uint160("1461446703485210103287273052203988822378723970341");
+    auto [s_amount0, s_amount1] = swap(pool0, zeroToOne, amount, zeroToOne ? SQPRL : SQPRR, false);
+    auto [r_amount0, r_amount1] = swap(pool1, zeroToOne, amount.ToDouble(), zeroToOne ? SQPRL.X96ToDouble() : SQPRR.X96ToDouble(), false);
+    cerr << s_amount0 << " " << r_amount0 << endl;
+    cerr << s_amount1 << " " << r_amount1 << endl;
+}
+
 int main(){
+    std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(7);
+    std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(7);
     cerr << "Initializing tick." << endl;
     initializeTicksPrice();
     cerr << "Generating data." << endl;
@@ -77,6 +88,9 @@ int main(){
     cerr << "done generated data cnt = " << UNI_DATA_SIZE << endl;
     Pool<true> pool_float;
     GenerateFloatPool(&pool, &pool_float);
+
+    // TestCertainPoint(&pool, &pool_float, int256("8310258772"), 0);
+    // return 0;
 
     cerr << "run" << endl;
     double timer = clock(); int uniq_id = 0;
@@ -98,6 +112,7 @@ int main(){
 
         diffe = max(fabs(  (ret1.second - ret0.second) / std::max(fabs(ret0.second), fabs(ret1.second))  ),
                 fabs(  (ret1.first - ret0.first) / std::max(fabs(ret0.first), fabs(ret1.first))  ));
+        cerr << "diffe = " << diffe << " " << tc[i].zeroToOne << " " << amountSpecified << endl;
 
         MAX_DIFF = std::max(MAX_DIFF, diffe);
         TOT_DIFF += diffe; TOT_CNT ++;

@@ -92,7 +92,7 @@ FloatType getSqrtRatioAtTick<FloatType>(int24 tick) {
 /// ever return.
 /// @param sqrtPriceX96 The sqrt ratio for which to compute the tick as a Q64.96
 /// @return tick The greatest tick for which the ratio is less than or equal to the input ratio
-int24 getTickAtSqrtRatio(FloatType sqrtPriceX96) {
+int24 getTickAtSqrtRatio(const FloatType & sqrtPriceX96) {
     require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
     return (std::upper_bound(getSqrtRatioAtTickMemory_float,
                         getSqrtRatioAtTickMemory_float + (MAX_TICK << 1 | 1) + 1,
@@ -100,7 +100,7 @@ int24 getTickAtSqrtRatio(FloatType sqrtPriceX96) {
             - getSqrtRatioAtTickMemory_float - 1) - shift;
 }
 
-int24 getTickAtSqrtRatio(uint160 sqrtPriceX96) {
+int24 getTickAtSqrtRatio(const uint160 & sqrtPriceX96) {
     require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
     return (std::upper_bound(getSqrtRatioAtTickMemory,
                         getSqrtRatioAtTickMemory + (MAX_TICK << 1 | 1) + 1,

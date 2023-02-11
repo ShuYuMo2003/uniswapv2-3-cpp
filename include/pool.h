@@ -269,7 +269,8 @@ std::pair<FloatType, FloatType> swap(
         && amountSpecified * state.amountSpecifiedRemaining > 0
         && fabs(state.sqrtPriceX96 - sqrtPriceLimitX96) > EPS) {
         // std::cerr << state.amountSpecifiedRemaining << std::endl;
-        cnt += fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) < EPS;
+        if(fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) < EPS) cnt++;
+        else cnt = 0;
         if (cnt > 2) break;
 
         lastAmountSpecifiedRemaining = state.amountSpecifiedRemaining;

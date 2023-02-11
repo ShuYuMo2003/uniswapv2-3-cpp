@@ -64,8 +64,8 @@ public:
     }
     std::pair<int24, bool> nextInitializedTickWithinOneWord(
         int24 tick,
-        int24 tickSpace,
-        bool lte
+        const int24 & tickSpace,
+        const bool & lte
     ) {
         // std::cout << "nextInitializedTickWithinOneWord: " << tick << " " << tickSpace << " " << lte << std::endl;
         // transform the real tick into the image of the tick in the tick space.
