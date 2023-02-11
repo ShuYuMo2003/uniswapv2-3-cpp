@@ -176,7 +176,7 @@ struct ModifyPositionParams {
 
     }
     void print() {
-        std::cout << owner << " " << tickLower << " " << tickUpper << " " << liquidityDelta << std::endl;
+        std::cout << owner << " " << tickLower << " " << tickUpper << " " << liquidityDelta;
     }
 };
 

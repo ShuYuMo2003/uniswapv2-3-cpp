@@ -40,7 +40,6 @@
 #ifndef headerfilettmathuint
 #define headerfilettmathuint
 
-
 /*!
 	\file ttmathuint.h
     \brief template class UInt<uint>
@@ -3107,7 +3106,7 @@ public:
 		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
 		unsigned long long mantissa = 0, exponent = 0;
 		uint table_id, index;
-		FindLeadingBit(table_id, index);
+		if(not FindLeadingBit(table_id, index)) return 0;
 
 		exponent = index + table_id * TTMATH_BITS_PER_UINT + 1023;
 
@@ -3139,6 +3138,7 @@ public:
 
 		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
 		double pre_value = ToDouble();
+		if((pre_value) < 1e-7 && (-pre_value) < 1e-7) return 0;
 
 		unsigned long long value = *(unsigned long long*)(&pre_value);
 		unsigned long long exponent = (((value >> 52) & ((1ull << 11) - 1)) - 96);

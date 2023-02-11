@@ -138,7 +138,7 @@ int main(int argc, char *argv[]) {
         std::cin >> sender; msg.sender.FromString(sender);
         ++t;
         // std::cerr << "Got contract = " << met << " No." << (t) << std::endl;
-        if(t % 200000 == 0) std::cerr << "to handle " << t << std::endl;
+        if(t % 2000 == 0) std::cerr << "to handle " << t << std::endl;
         if (met == "initialize") std::cin >> price >> tick;
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;

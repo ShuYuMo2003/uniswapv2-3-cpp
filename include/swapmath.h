@@ -23,6 +23,9 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
     int256 amountRemaining,
     uint24 feePips
 ) {
+#ifdef DEBUG
+    std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96.X96ToDouble() << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
+#endif
     bool zeroForOne = sqrtRatioCurrentX96 >= sqrtRatioTargetX96;
     bool exactIn = amountRemaining >= 0;
 
@@ -97,6 +100,9 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
     FloatType amountRemaining,
     uint24 feePips
 ) {
+#ifdef DEBUG
+    std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
+#endif
     bool zeroForOne = sqrtRatioCurrentX96 >= sqrtRatioTargetX96;
     bool exactIn = amountRemaining >= 0;
 

@@ -67,10 +67,11 @@ std::pair<uint256, uint256> swapWithCheck(
 
 
 // not calc time:
-
+    // std::cerr << "====================== FloatT =====================" << std::endl;
     auto ret0 = swap(PoolFloat, zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble(), true);
-
+    // std::cerr << "====================== BigInt =====================" << std::endl;
     auto ret1 = swap(pool, zeroToOne, amountSpecified, sqrtPriceLimitX96, true);
+
 
     double diffe;
     if (zeroToOne^(amountSpecified > 0)) {
@@ -94,14 +95,23 @@ std::pair<uint256, uint256> swapWithCheck(
         exit(0);
     }
 
+    // std::cerr << "=========================== End of Swap ===========================" << std::endl;
+    // std::cerr << "float "; PoolFloat->slot0.print();
+    // std::cerr<< "==========================================="  << std::endl;
+    // std::cerr << "bigin "; pool->slot0.print();
+
 
     return ret1;
 }
 
-double comparison(double x, double y) { return fabs(x - y) / std::max(x, y); }
+double comparison(double x, double y) {
+    if(fabs(x - y) < EPS) return 0;
+    return fabs(x - y) / std::max(x, y);
+}
 
 int main(int argc, char *argv[]) {
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(20);
+    std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(7);
     std::cerr << "Initializing tick price" << std::endl;
     initializeTicksPrice();
     std::cerr << "Tick price initialized" << std::endl;
@@ -137,21 +147,25 @@ int main(int argc, char *argv[]) {
 
     Pool<true> PoolFloat;
     GenerateFloatPool(&pool, &PoolFloat);
-
+    int lastBlock = 0;
     while (std::cin >> met) {
 
-        Pool back = pool;
+        Pool back = pool; Pool back_float = PoolFloat;
         // Pool pool("tmp" + std::to_string(t)), back = pool;
         // pool.save("tmpread" + std::to_string(t));
         std::cin >> sender; msg.sender.FromString(sender);
         ++t;
-        // std::cerr << "Got contract = " << met << " No." << (t) << std::endl;
-        if(t % 200000 == 0) std::cerr << "to handle " << t << std::endl;
+        // std::cerr << "\n\n======================== Got contract = " << met << " No." << (t) << " =========================== "<< std::endl;
+        if(t % 20000 == 0) std::cerr << "to handle " << t << std::endl;
         if (met == "initialize") std::cin >> price >> tick;
         else if (met == "mint") std::cin >> tickLower >> tickUpper >> liquidity >> amount0 >> amount1;
         else if (met == "swap") std::cin >> zeroToOne >> amount >> price >> amount0 >> amount1 >> liquidity >> tick;
         else if (met == "burn") std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
         std::cin >> blockNum;
+        if(lastBlock != blockNum) {
+            GenerateFloatPool(&pool, &PoolFloat);
+            lastBlock = blockNum;
+        }
         // int lim = 1268728;
         // if (blockNum <= stBlock) continue;
         // if (t <= 2640775) continue;
@@ -168,12 +182,16 @@ int main(int argc, char *argv[]) {
         } else if (met == "mint") {
             cnt[1]++;
             long long start = getTimeNs();
+            // std::cerr << "==== BIGINT Pool ====" << std::endl;
             std::tie(ruamount0, ruamount1)           = mint(&pool,      sender, tickLower, tickUpper, liquidity, "");
+            // std::cerr << "==== FLOAT  Pool ====" << std::endl;
             std::tie(ruamount0_fuck, ruamount1_fuck) = mint(&PoolFloat, sender, tickLower, tickUpper, uint128(liquidity).ToDouble(), "");
             timeCnt[1] += getTimeNs() - start;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
             assert(ruamount0 == amount0 && ruamount1 == amount1);
+            // std::cerr << "MINT RET: " << ruamount0.ToDouble() << " " << ruamount0_fuck << std::endl;
+            // std::cerr << "MINT RET: " << ruamount1.ToDouble() << " " << ruamount1_fuck << std::endl;
             assert(comparison(ruamount0.ToDouble(), ruamount0_fuck) < MAX_DEVIATION);
             assert(comparison(ruamount1.ToDouble(), ruamount1_fuck) < MAX_DEVIATION);
             // assert(dis(ruamount0, amount0) <= 100 && dis(ruamount1, amount1) < 100);
@@ -184,8 +202,8 @@ int main(int argc, char *argv[]) {
             bool suc = false;
             long long timer = 0;
             for (int i = 0; i < 3; ++i) {
-                if (i) pool = back;
-                // std::cout << "================= Swap attempt " << (i + 1) << "==================\n";
+                if (i) pool = back, PoolFloat = back_float;
+                // std::cout << "\n================= Swap attempt " << (i + 1) << "==================\n";
                 if (i == 0) std::tie(ramount0, ramount1) = swapWithCheck(&pool, &PoolFloat, sender, zeroToOne, amount, _price, "", timer);
                 else if (i == 1) {
                     std::string k = zeroToOne ? amount1 : amount0;
@@ -211,11 +229,17 @@ int main(int argc, char *argv[]) {
         } else if (met == "burn") {
             cnt[3]++;
             long long start = getTimeNs();
+            // std::cerr << "============== BIGINT ================" << std::endl;
             std::tie(ruamount0, ruamount1)           = burn(&pool,      tickLower, tickUpper, amount);
+            // std::cerr << "============== FLOAT  ================" << std::endl;
             std::tie(ruamount0_fuck, ruamount1_fuck) = burn(&PoolFloat, tickLower, tickUpper, uint128(amount).ToDouble());
+            // std::cerr << "============== ENDDD ================" << std::endl;
             // std::cout << tickLower << " " << tickUpper << " " << amount << std::endl;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
+
+            // std::cerr << "BURN RET: " << ruamount0.ToDouble() << " " << ruamount0_fuck << std::endl;
+            // std::cerr << "BURN RET: " << ruamount1.ToDouble() << " " << ruamount1_fuck << std::endl;
             assert(ruamount0 == amount0 && ruamount1 == amount1);
             assert(dis(ruamount0, amount0) <= 100 && dis(ruamount1, amount1) < 100);
             assert(comparison(ruamount0.ToDouble(), ruamount0_fuck) < MAX_DEVIATION);
@@ -228,19 +252,8 @@ int main(int argc, char *argv[]) {
             // std::cout << amount0 << " " << amount1 << std::endl;
             // assert(ruamount0 == amount0 && ruamount1 == amount1);
         }
-        // std::cout << pool << std::endl;
-        // pool.save("tmp" + std::to_string(t));
-        // if (t > 10) std::system(("rm tmp" + std::to_string(t - 10)).c_str());
-        // pool.slot0.print();
-        // std::cout << "sqrtPriceX96: " <<;
-        // pool.slot0.sqrtPriceX96.PrintTable(std::cout);
-        // std::cout << std::endl;
-        // std::cout << "liquidity: " << pool.liquidity << std::endl;
-        // if (t > 2641960) {
-        //     std::cout << t << std::endl;
-        //     pool.save("pool_state");
-        // }
-        // pool.save("pool_state_" + std::to_string(blockNum));
+        // assert(comparison(pool.slot0.sqrtPriceX96.X96ToDouble(), PoolFloat.slot0.sqrtPriceX96) < MAX_DEVIATION);
+        // assert(pool.slot0.tick == PoolFloat.slot0.tick);
     }
     std::cout << "\n\n" << std::endl;
     for (int i = 0; i < 4; ++i) {

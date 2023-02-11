@@ -68,17 +68,17 @@ FloatType getNextSqrtPriceFromAmount0RoundingUp(
             FloatType denominator = numerator1 + product;
             if (denominator >= numerator1)
                 // always fits in 160 bits
-                return mulDivRoundingUp(numerator1, sqrtPX96, denominator);
+                return (numerator1 * sqrtPX96 / denominator);
         }
 
-        return divRoundingUp(numerator1, floor(numerator1 / sqrtPX96) + amount);
+        return numerator1 / (numerator1 / sqrtPX96 + amount);
     } else {
         FloatType product;
         // if the product overflows, we know the denominator underflows
         // in addition, we must check that the denominator does not underflow
         require(fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS && numerator1 > product, "POO");
         FloatType denominator = numerator1 - product;
-        return mulDivRoundingUp(numerator1, sqrtPX96, denominator);
+        return (numerator1 * sqrtPX96 / denominator);
     }
 }
 
@@ -187,9 +187,11 @@ FloatType getAmount0Delta(
     require(sqrtRatioAX96 > 0, "QWQ");
 
     if (roundUp) {
-        return ceil(mulDivRoundingUp(numerator1, numerator2, sqrtRatioBX96) / sqrtRatioAX96);
+        return ceil((numerator1 * numerator2 / sqrtRatioBX96) / sqrtRatioAX96);
     } else {
-        return (mulDiv(numerator1, numerator2, sqrtRatioBX96) / sqrtRatioAX96);
+        // FloatType ret = (numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96;
+        // FloatType ret_temp0 = floor(ret), ret_temp1 = floor(ret + 0.5);
+        return floor((numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96); //ret_temp0 == ret_temp1 ? ret_temp0 : ret;
     }
 }
 
@@ -224,7 +226,7 @@ FloatType getAmount1Delta(
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
     if (roundUp) {
-        return round(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
+        return ceil(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
     } else {
         return floor(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
     }

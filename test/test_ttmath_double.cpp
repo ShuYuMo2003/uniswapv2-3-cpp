@@ -5,7 +5,8 @@
 
 
 int main(){
-    uint160 aim("123456712398462189123456789");
+    uint160 aim("0");
+
 
 
     printf("%.10lf\n", aim.ToDouble());
