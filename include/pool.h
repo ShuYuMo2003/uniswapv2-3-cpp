@@ -59,17 +59,120 @@ struct Pool{
         return uint32(block.timestamp); // truncation is desired
     }
 };
-
-void GenerateFloatPool(const Pool<false> * from, Pool<true> * to) {
 /*
     uint24 fee;
     int24 tickSpacing;
     LiquidityType maxLiquidityPerTick;
-    Slot0<enable_float> slot0;
     LiquidityType liquidity;
+    Slot0<enable_float> slot0;
     Ticks<enable_float> ticks;
     TickBitMapBaseOnVector tickBitmap;
 */
+template<bool enable_float>
+size_t LoadPool(Pool<enable_float> * o, char * buffer) {
+    char * header = buffer;
+    bool PoolType;
+    size_t temp = 0;
+
+    memcpy(&PoolType, header, sizeof(PoolType));
+    header += sizeof(PoolType);
+
+    require(PoolType == enable_float, "Loading pool failed: different pool type.");
+
+    memcpy(&o->fee, header, sizeof(o->fee));
+    header += sizeof(o->fee);
+
+    memcpy(&o->tickSpacing, header, sizeof(o->tickSpacing));
+    header += sizeof(o->tickSpacing);
+
+    memcpy(&o->maxLiquidityPerTick, header, sizeof(o->maxLiquidityPerTick));
+    header += sizeof(o->maxLiquidityPerTick);
+
+    memcpy(&o->liquidity, header, sizeof(o->liquidity));
+    header += sizeof(o->liquidity);
+
+    memcpy(&o->slot0, header, sizeof(o->slot0));
+    header += sizeof(o->slot0);
+
+    memcpy(&temp, header, sizeof(temp));
+    header += sizeof(temp);
+
+    o->ticks.data.clear();
+    for(int i = 0; i < temp; i++) {
+        int24 key;
+        Tick<enable_float> value;
+
+        memcpy(&key, header, sizeof(key));
+        header += sizeof(key);
+
+        memcpy(&value, header, sizeof(value));
+        header += sizeof(value);
+
+        o->ticks.data.insert({key, value});
+    }
+
+    memcpy(&temp, header, sizeof(temp));
+    header += sizeof(temp);
+
+    o->tickBitmap.validCache = false;
+    o->tickBitmap.data.clear();
+    for(int i = 0; i < temp; i++) {
+        int24 value;
+        memcpy(&value, header, sizeof(value));
+        header += sizeof(value);
+        o->tickBitmap.data.push_back(value);
+    }
+    return header - buffer;
+}
+
+template<bool enable_float>
+size_t DumpPool(Pool<enable_float> * o, char * buffer) {
+    char * header = buffer;
+    bool PoolType = enable_float;
+    size_t temp = 0;
+
+    memcpy(header, &PoolType, sizeof(PoolType));
+    header += sizeof(PoolType);
+
+    memcpy(header, &o->fee, sizeof(o->fee));
+    header += sizeof(o->fee);
+
+    memcpy(header, &o->tickSpacing, sizeof(o->tickSpacing));
+    header += sizeof(o->tickSpacing);
+
+    memcpy(header, &o->maxLiquidityPerTick, sizeof(o->maxLiquidityPerTick));
+    header += sizeof(o->maxLiquidityPerTick);
+
+    memcpy(header, &o->liquidity, sizeof(o->liquidity));
+    header += sizeof(o->liquidity);
+
+    memcpy(header, &o->slot0, sizeof(o->slot0));
+    header += sizeof(o->slot0);
+
+    temp = o->ticks.data.size();
+    memcpy(header, &temp, sizeof(temp));
+    header += sizeof(temp);
+
+    for(auto [key, value] : o->ticks.data){
+        memcpy(header, &key, sizeof(key));
+        header += sizeof(key);
+
+        memcpy(header, &value, sizeof(value));
+        header += sizeof(value);
+    }
+
+    temp = o->tickBitmap.data.size();
+    memcpy(header, &temp, sizeof(temp));
+    header += sizeof(temp);
+
+    for(auto value : o->tickBitmap.data){
+        memcpy(header, &value, sizeof(value));
+        header += sizeof(value);
+    }
+    return header - buffer;
+}
+
+void GenerateFloatPool(const Pool<false> * from, Pool<true> * to) {
     to->fee                 = from->fee;
     to->tickSpacing         = from->tickSpacing;
     to->maxLiquidityPerTick = from->maxLiquidityPerTick.ToDouble();
