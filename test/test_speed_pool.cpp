@@ -101,7 +101,6 @@ int main(){
     cerr << "Generating data." << endl;
 
     Pool<false> pool("pool_state");
-    DumpPool(pool, )
 
     //generateFromExpon(&pool);
     generateFromEvent(&pool);

@@ -1,20 +1,15 @@
 #ifndef headerfiletickmath
 #define headerfiletickmath
 
-#include "consts.h"
 #include "types.h"
+#include "consts.h"
+#include "_tick.h"
 #include "util.h"
 #include <cassert>
 #include <algorithm>
 
-/// @dev The minimum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**-128
-const int24 MIN_TICK = -887272;
-/// @dev The maximum tick that may be passed to #getSqrtRatioAtTick computed from log base 1.0001 of 2**128
-const int24 MAX_TICK = -MIN_TICK;
-
-
-const uint BUFFER_SIZE = (MAX_TICK << 1) + 20;
-const uint shift = MAX_TICK;
+const int BUFFER_SIZE = (MAX_TICK << 1) + 20;
+const int shift = MAX_TICK;
 bool ticks_price_initialized = false;
 uint160 getSqrtRatioAtTickMemory[BUFFER_SIZE];
 FloatType getSqrtRatioAtTickMemory_float[BUFFER_SIZE];
@@ -22,6 +17,7 @@ void initializeTicksPrice() {
     FILE * TickCacheFileHandle = fopen("TickCache.dat", "rb");
     if(TickCacheFileHandle != NULL) {
         fread(getSqrtRatioAtTickMemory, sizeof(uint160), BUFFER_SIZE, TickCacheFileHandle);
+        fclose(TickCacheFileHandle);
     } else {
         for(int24 now = MIN_TICK; now <= MAX_TICK; now++) {
             getSqrtRatioAtTickMemory[now + shift] = ([](int24 tick) {
@@ -57,6 +53,7 @@ void initializeTicksPrice() {
         FILE * newTickCacheFileHandle = fopen("TickCache.dat", "wb");
         assert(newTickCacheFileHandle != NULL);
         fwrite(getSqrtRatioAtTickMemory, sizeof(uint160), BUFFER_SIZE, newTickCacheFileHandle);
+        fclose(newTickCacheFileHandle);
     }
 
     for(int24 now = MIN_TICK; now <= MAX_TICK; now++)

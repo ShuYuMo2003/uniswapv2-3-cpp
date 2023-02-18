@@ -29,61 +29,32 @@ typedef std::string bytes32;
 
 template<bool enable_float>
 struct Slot0 {
-    // the current price
     typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceX96;
-    // the current tick
     int24 tick;
-    // the most-recently updated index of the observations array
-    // uint16 observationIndex;
-    // the current maximum number of observations that are being stored
-    // uint16 observationCardinality;
-    // the next maximum number of observations to store, triggered in observations.write
-    // uint16 observationCardinalityNext;
-    // the current protocol fee as a percentage of the swap fee taken on withdrawal
-    // represented as an integer denominator (1/x)%
-    // uint8 feeProtocol;
     Slot0() { sqrtPriceX96 = 0; }
     Slot0(
         typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceX96,
         int24 tick
-        // uint16 observationIndex,
-        // uint16 observationCardinality,
-        // uint16 observationCardinalityNext,
-        // uint8 feeProtocol
     ) : sqrtPriceX96(sqrtPriceX96),
         tick(tick)
-        // observationIndex(observationIndex),
-        // observationCardinality(observationCardinality),
-        // observationCardinalityNext(observationCardinalityNext),
-        // feeProtocol(feeProtocol)
         {
-
     }
     friend std::istream& operator>>(std::istream& is, Slot0& slot) {
         is >> slot.sqrtPriceX96 >> slot.tick;
-            // >> slot.observationIndex >> slot.observationCardinality
-            // >> slot.observationCardinalityNext >> slot.feeProtocol;
         return is;
     }
     friend std::ostream& operator<<(std::ostream& os, const Slot0& slot) {
         os << slot.sqrtPriceX96 << " " << slot.tick;
-            // << slot.observationIndex << " " << slot.observationCardinality << " "
-            // << slot.observationCardinalityNext << " " << slot.feeProtocol;
         return os;
     }
     void print() {
         std::cout << "---------- Slot0 INFO BELOW ------------" << std::endl
             << "sqrtPriceX96: " << sqrtPriceX96
             << "\ntick: " << tick
-            // << "\nobservationIndex: " << observationIndex
-            // << "\nobservationCardinality: " << observationCardinality
-            // << "\nobservationCardinalityNext: " << observationCardinalityNext
-            // << "\nfeeProtocol: " << feeProtocol
             << std::endl;
         std::cout << "---------- Slot0 INFO ABOVE ------------" << std::endl;
     }
 };
-
 
 // the top level state of the swap, the results of which are recorded in storage at the end
 template<bool enable_float>
@@ -117,23 +88,6 @@ struct SwapState {
     }
 };
 
-template<bool enable_float>
-struct StepComputations {
-    // the price at the beginning of the step
-    typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceStartX96;
-    // the next tick to swap to from the current tick in the swap direction
-    int24 tickNext;
-    // whether tickNext is initialized or not
-    bool initialized;
-    // sqrt(price) for the next tick (1/0)
-    typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceNextX96;
-    // how much is being swapped in in this step
-    typename std::conditional<enable_float, FloatType, uint256>::type amountIn;
-    // how much is being swapped out
-    typename std::conditional<enable_float, FloatType, uint256>::type amountOut;
-    // how much fee is being paid in
-    typename std::conditional<enable_float, FloatType, uint256>::type feeAmount;
-};
 
 struct Block
 {
@@ -157,26 +111,22 @@ struct Message
 
 template<bool enable_float>
 struct ModifyPositionParams {
-    // the address that owns the position
-    address owner;
     // the lower and upper tick of the position
     int24 tickLower;
     int24 tickUpper;
     // any change in liquidity
     typename std::conditional<enable_float, FloatType, int128>::type liquidityDelta;
     ModifyPositionParams(
-        address owner,
         int24 tickLower,
         int24 tickUpper,
         typename std::conditional<enable_float, FloatType, int128>::type liquidityDelta
-    ) : owner(owner),
-        tickLower(tickLower),
+    ) : tickLower(tickLower),
         tickUpper(tickUpper),
         liquidityDelta(liquidityDelta) {
 
     }
     void print() {
-        std::cout << owner << " " << tickLower << " " << tickUpper << " " << liquidityDelta;
+        std::cout << tickLower << " " << tickUpper << " " << liquidityDelta;
     }
 };
 

@@ -161,6 +161,9 @@ uint256 getAmount0Delta(
     uint256 numerator1 = uint256(liquidity) << RESOLUTION;
     uint256 numerator2 = sqrtRatioBX96 - sqrtRatioAX96;
 
+    if(sqrtRatioAX96 > 0); else {
+        std::cout << sqrtRatioAX96 << std::endl;
+    }
     require(sqrtRatioAX96 > 0, "T_T");
 
     if (roundUp) {

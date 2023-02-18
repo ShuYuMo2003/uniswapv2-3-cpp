@@ -1,6 +1,11 @@
 #ifndef headerfileutil
 #define headerfileutil
 #include <cmath>
+#include <cstring>
+#include <cassert>
+
+#include "types.h"
+#include "consts.h"
 
 #ifndef NDEBUG
 #   define ASSERT(condition, message) \
@@ -15,8 +20,7 @@
 #   define ASSERT(condition, message) do { } while (false)
 #endif
 
-#include <cstring>
-#include <cassert>
+
 
 void require(bool condition, std::string msg = "") {
     ASSERT(condition, "msg: " << msg);

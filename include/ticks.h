@@ -5,14 +5,149 @@
 
 #include "types.h"
 #include "util.h"
+#include "_tick.h"
 #include <set>
 #include <vector>
 #include <algorithm>
 
 
 #define GWordPos(a) ((a) >> 8)
-#define fetchLowerBound(a) (a << 8)
-#define fetchUpperBound(a) ((a << 8) | 255)
+#define fetchLowerBound(a) ((a) * 256) // 右移负数是 UB
+#define fetchUpperBound(a) (((a) * 256) + 255)
+
+template<bool enable_float>
+inline bool tickCmp(const _Tick<enable_float> & lhs, const _Tick<enable_float> & rhs) {
+    return lhs.id < rhs.id;
+}
+
+template<bool enable_float>
+struct Ticks{
+    size_t length;
+    _Tick<enable_float> temp;
+    // 不包括 temp, temp 的下一个位置开始，长度为 length 的一段内存 存储_Tick 信息。
+    Ticks() { length = 0; }
+};
+
+std::pair<int16, int16> position(int24 tick) {
+    // TODO: check 负数左移？
+    return std::make_pair(int16(tick >> 8), uint8(tick - (int16(tick >> 8) * 256)));
+}
+
+template<bool enable_float>
+_Tick<enable_float> * fetchTick(Ticks<enable_float> * o, int24 tick) {
+    _Tick<enable_float> * beginPtr = (&o->temp) + 1;
+    _Tick<enable_float> * endPtr   = beginPtr + o->length;
+
+    o->temp.id = tick;
+    _Tick<enable_float> * aim = std::lower_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
+    if(aim == endPtr || aim->id != tick){
+        std::memmove(aim + 1, aim, sizeof(o->temp) * (endPtr - aim));
+        o->length++;
+        *aim = _Tick<enable_float>(tick);
+    }
+    return aim;
+}
+
+template<bool enable_float>
+void clearTick(Ticks<enable_float> * o, int24 tick) { // 如果存在 则清空 否则不处理。
+    _Tick<enable_float> * beginPtr = (&o->temp) + 1;
+    _Tick<enable_float> * endPtr   = beginPtr + o->length;
+
+    o->temp.id = tick;
+    _Tick<enable_float> * aim = std::lower_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
+    if(aim != endPtr && aim->id == tick){
+        aim->liquidityGross = 0;
+        aim->liquidityNet = 0;
+    }
+}
+
+template<bool enable_float>
+void eraseTick(Ticks<enable_float> * o, int24 tick, int24 tickspace) {
+
+    _Tick<enable_float> * beginPtr = (&o->temp) + 1;
+    _Tick<enable_float> * endPtr   = beginPtr + o->length;
+
+    o->temp.id = tick;
+    _Tick<enable_float> * aim = std::lower_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
+
+    require(aim != endPtr && aim->id == tick, "呜呜");
+
+    std::memmove(aim, aim + 1, sizeof(o->temp) * (endPtr - aim - 1));
+    o->length--;
+}
+
+template<bool enable_float>
+std::pair<_Tick<enable_float> *, bool> nextInitializedTickWithinOneWord(
+    Ticks<enable_float> * o,
+    int24 tick,
+    int24 tickspace,
+    bool lte
+) {
+    _Tick<enable_float> * beginPtr = (&o->temp) + 1;
+    _Tick<enable_float> * endPtr   = beginPtr + o->length;
+    if(tick < 0 && tick % tickspace != 0) {
+        tick = tick / tickspace - 1;
+    } else {
+        tick /= tickspace;
+    }
+
+    if(lte) {
+        auto [wordPos, bitPos] = position(tick);
+
+        o->temp.id = tick * tickspace;
+        _Tick<enable_float> * next = std::upper_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
+
+        if(next == beginPtr || GWordPos((next - 1)->id / tickspace) != wordPos){
+            o->temp.id = fetchLowerBound(wordPos) * tickspace;
+            return std::make_pair(&(o->temp), false);
+        } else {
+            return std::make_pair(next - 1, true);
+        }
+    } else {
+        tick += 1;
+        auto [wordPos, bitPos] = position(tick);
+
+        o->temp.id = tick * tickspace;
+        _Tick<enable_float> * next = std::lower_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
+
+        if(next == endPtr || GWordPos(next->id / tickspace) != wordPos){
+            o->temp.id = fetchUpperBound(wordPos) * tickspace;
+            return std::make_pair(&(o->temp), false);
+        } else {
+            return std::make_pair(next, true);
+        }
+
+    }
+
+}
+
+
+template<bool enable_float>
+std::istream& operator>>(std::istream& is, Ticks<enable_float>& ticks) {
+    is >> ticks.length;
+
+    _Tick<enable_float> * beginPtr = (&ticks.temp) + 1;
+    _Tick<enable_float> * endPtr   = beginPtr + ticks.length;
+
+    for(auto now = beginPtr; now < endPtr; now++) {
+        is >> (*now);
+    }
+    return is;
+}
+
+template<bool enable_float>
+std::ostream& operator<<(std::ostream& os, const Ticks<enable_float> &ticks) {
+    os << ticks.length << std::endl;
+    _Tick<enable_float> * beginPtr = ((_Tick<enable_float> * )(&ticks.temp)) + 1;
+    _Tick<enable_float> * endPtr   = beginPtr + ticks.length;
+
+    for(auto i = beginPtr; i < endPtr; i++) {
+        os << (*i) << std::endl;
+    }
+    return os;
+}
+
+/*
 
 // have the same API and behaviour with TickBitmap but based on a STL, `std::set`.
 class TickBitMapBaseOnVector {
@@ -125,6 +260,7 @@ public:
     double cacheRate() { return 1 - ((double)cacheMiss / cacheTotal); }
 #endif
 };
+*/
 
 /*
 // have the same API and behaviour with TickBitmap but based on a STL, `std::set`.

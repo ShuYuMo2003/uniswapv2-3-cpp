@@ -5,35 +5,56 @@
 #include <cmath>
 #include <cstdlib> // For debug pause only.
 
-#include "consts.h"
-#include "global.h"
 #include "types.h"
+#include "consts.h"
 #include "util.h"
 
 #include "swapmath.h"
-#include "tick.h"
-#include "tick_bitmap.h"
+#include "ticks.h"
+#include "_tick.h"
 #include "tickmath.h"
 #include "liquiditymath.h"
 
 #define LiquidityType typename std::conditional<enable_float, FloatType, uint128>::type
 #define PriceType     typename std::conditional<enable_float, FloatType, uint160>::type
 
+
+template<bool enable_float>
+struct StepComputations {
+    // the price at the beginning of the step
+    typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceStartX96;
+    // the next tick to swap to from the current tick in the swap direction
+    _Tick<enable_float> * tickNext;
+    // whether tickNext is initialized or not
+    bool initialized;
+    // sqrt(price) for the next tick (1/0)
+    typename std::conditional<enable_float, FloatType, uint160>::type sqrtPriceNextX96;
+    // how much is being swapped in in this step
+    typename std::conditional<enable_float, FloatType, uint256>::type amountIn;
+    // how much is being swapped out
+    typename std::conditional<enable_float, FloatType, uint256>::type amountOut;
+    // how much fee is being paid in
+    typename std::conditional<enable_float, FloatType, uint256>::type feeAmount;
+};
+
+
 template<bool enable_float>
 struct Pool{
+    bool poolType;
     uint24 fee;
     int24 tickSpacing;
     LiquidityType maxLiquidityPerTick;
     Slot0<enable_float> slot0;
     LiquidityType liquidity;
     Ticks<enable_float> ticks;
-    TickBitMapBaseOnVector tickBitmap; // If some error occurs because of bitmap, just replace the codes below to `TickBitmap tickBitmap;`
-    Pool() {}
+    Pool() { poolType = enable_float; }
     Pool(uint24 fee, int24 tickSpacing, LiquidityType maxLiquidityPerTick)
         : fee(fee), tickSpacing(tickSpacing), maxLiquidityPerTick(maxLiquidityPerTick) {
         liquidity = 0;
+        poolType = enable_float;
     }
     Pool(std::string filename) {
+        poolType = enable_float;
         std::ifstream fin(filename);
         fin >> *this;
         fin.close();
@@ -43,162 +64,64 @@ struct Pool{
         fout << *this;
         fout.close();
     }
-    void copyFrom(const Pool &o) {
-        fee = o.fee, tickSpacing = o.tickSpacing, maxLiquidityPerTick = o.maxLiquidityPerTick;
-        slot0 = o.slot0, liquidity = o.liquidity, ticks = o.ticks, tickBitmap = o.tickBitmap;
-    }
     const Pool & operator=(const Pool &o) {
-        copyFrom(o);
-        return *this;
-    }
-    Pool(const Pool &o) : fee(o.fee), tickSpacing(o.tickSpacing), maxLiquidityPerTick(o.maxLiquidityPerTick) {
-        copyFrom(o);
-    }
-    /// @dev Returns the block timestamp truncated to 32 bits, i.e. mod 2**32. This method is overridden in tests.
-    uint32 _blockTimestamp() {
-        return uint32(block.timestamp); // truncation is desired
+        assert(("Don't use default copy on pool, You should use `CopyPool()` to do that.", false));
     }
 };
-/*
-    uint24 fee;
-    int24 tickSpacing;
-    LiquidityType maxLiquidityPerTick;
-    LiquidityType liquidity;
-    Slot0<enable_float> slot0;
-    Ticks<enable_float> ticks;
-    TickBitMapBaseOnVector tickBitmap;
-*/
+
 template<bool enable_float>
-size_t LoadPool(Pool<enable_float> * o, char * buffer) {
-    char * header = buffer;
-    bool PoolType;
-    size_t temp = 0;
+char * fetchLowerAddress(Pool<enable_float> * o) {
+    return (char *)o;
+}
 
-    memcpy(&PoolType, header, sizeof(PoolType));
-    header += sizeof(PoolType);
-
-    require(PoolType == enable_float, "Loading pool failed: different pool type.");
-
-    memcpy(&o->fee, header, sizeof(o->fee));
-    header += sizeof(o->fee);
-
-    memcpy(&o->tickSpacing, header, sizeof(o->tickSpacing));
-    header += sizeof(o->tickSpacing);
-
-    memcpy(&o->maxLiquidityPerTick, header, sizeof(o->maxLiquidityPerTick));
-    header += sizeof(o->maxLiquidityPerTick);
-
-    memcpy(&o->liquidity, header, sizeof(o->liquidity));
-    header += sizeof(o->liquidity);
-
-    memcpy(&o->slot0, header, sizeof(o->slot0));
-    header += sizeof(o->slot0);
-
-    memcpy(&temp, header, sizeof(temp));
-    header += sizeof(temp);
-
-    o->ticks.data.clear();
-    for(int i = 0; i < temp; i++) {
-        int24 key;
-        Tick<enable_float> value;
-
-        memcpy(&key, header, sizeof(key));
-        header += sizeof(key);
-
-        memcpy(&value, header, sizeof(value));
-        header += sizeof(value);
-
-        o->ticks.data.insert({key, value});
-    }
-
-    memcpy(&temp, header, sizeof(temp));
-    header += sizeof(temp);
-
-    o->tickBitmap.validCache = false;
-    o->tickBitmap.data.clear();
-    for(int i = 0; i < temp; i++) {
-        int24 value;
-        memcpy(&value, header, sizeof(value));
-        header += sizeof(value);
-        o->tickBitmap.data.push_back(value);
-    }
-    return header - buffer;
+template<bool enable_float> // Next address of the last address of the pool.
+char * fetchUpperAddress(Pool<enable_float> * o) {
+    return (char *)((&(o->ticks.temp)) + (1 + o->ticks.length));
 }
 
 template<bool enable_float>
-size_t DumpPool(Pool<enable_float> * o, char * buffer) {
-    char * header = buffer;
-    bool PoolType = enable_float;
-    size_t temp = 0;
+size_t sizeOfPool(Pool<enable_float> * o) {
+    return fetchUpperAddress(o) - fetchLowerAddress(o);
+}
 
-    memcpy(header, &PoolType, sizeof(PoolType));
-    header += sizeof(PoolType);
+template<bool enable_float>
+size_t CopyPool(Pool<enable_float> * from, Pool<enable_float> * to) {
+    // assert(from->poolType == enable_float && to->poolType == enable_float);
 
-    memcpy(header, &o->fee, sizeof(o->fee));
-    header += sizeof(o->fee);
+    char * lowerAddress = fetchLowerAddress(from);
+    char * UpperAddress = fetchUpperAddress(from);
 
-    memcpy(header, &o->tickSpacing, sizeof(o->tickSpacing));
-    header += sizeof(o->tickSpacing);
-
-    memcpy(header, &o->maxLiquidityPerTick, sizeof(o->maxLiquidityPerTick));
-    header += sizeof(o->maxLiquidityPerTick);
-
-    memcpy(header, &o->liquidity, sizeof(o->liquidity));
-    header += sizeof(o->liquidity);
-
-    memcpy(header, &o->slot0, sizeof(o->slot0));
-    header += sizeof(o->slot0);
-
-    temp = o->ticks.data.size();
-    memcpy(header, &temp, sizeof(temp));
-    header += sizeof(temp);
-
-    for(auto [key, value] : o->ticks.data){
-        memcpy(header, &key, sizeof(key));
-        header += sizeof(key);
-
-        memcpy(header, &value, sizeof(value));
-        header += sizeof(value);
-    }
-
-    temp = o->tickBitmap.data.size();
-    memcpy(header, &temp, sizeof(temp));
-    header += sizeof(temp);
-
-    for(auto value : o->tickBitmap.data){
-        memcpy(header, &value, sizeof(value));
-        header += sizeof(value);
-    }
-    return header - buffer;
+    memcpy(to, from, UpperAddress - lowerAddress);
+    return UpperAddress - lowerAddress;
 }
 
 void GenerateFloatPool(const Pool<false> * from, Pool<true> * to) {
+    to->poolType            = true;
     to->fee                 = from->fee;
     to->tickSpacing         = from->tickSpacing;
     to->maxLiquidityPerTick = from->maxLiquidityPerTick.ToDouble();
-    // std::cerr << from->slot0.sqrtPriceX96 << " " << from->slot0.sqrtPriceX96.X96ToDouble() << std::endl;
     to->slot0.sqrtPriceX96  = from->slot0.sqrtPriceX96.X96ToDouble();
     to->slot0.tick          = from->slot0.tick;
     to->liquidity           = from->liquidity.ToDouble();
 
-    to->ticks.data.clear();
-    for(const auto & [key, value] : from->ticks.data){
-        to->ticks.data[key] = Tick<true>(value.liquidityGross.ToDouble(),
-                                         value.liquidityNet.ToDouble(),
-                                         value.initialized);
-    }
 
-    to->tickBitmap.validCache = false;
-    to->tickBitmap.data.clear();
-    for(const auto & d : from->tickBitmap.data) {
-        to->tickBitmap.data.push_back(d);
+    to->ticks.length = from->ticks.length;
+    _Tick<true> * now = (&to->ticks.temp) + 1;
+
+    _Tick<false> * beginPtr = ((_Tick<false> *)(&from->ticks.temp)) + 1;
+    _Tick<false> * endPtr   = beginPtr + from->ticks.length;
+    for(_Tick<false> * i = beginPtr; i < endPtr; i++) {
+        now->id             = i->id;
+        now->liquidityGross = i->liquidityGross.ToDouble();
+        now->liquidityNet   = i->liquidityNet.ToDouble();
+        now++;
     }
 }
 
 template<bool enable_float>
 std::istream& operator>>(std::istream& is, Pool<enable_float>& pool) {
     is >> pool.fee >> pool.tickSpacing >> pool.maxLiquidityPerTick
-        >> pool.liquidity >> pool.slot0 >> pool.ticks >> pool.tickBitmap;
+        >> pool.liquidity >> pool.slot0 >> pool.ticks;
     return is;
 }
 
@@ -206,7 +129,7 @@ template<bool enable_float>
 std::ostream& operator<<(std::ostream& os, const Pool<enable_float>& pool) {
     os << pool.fee << " " << pool.tickSpacing << " " << pool.maxLiquidityPerTick << " " << pool.liquidity << std::endl;
     os << pool.slot0 << std::endl;
-    os << pool.ticks << pool.tickBitmap;
+    os << pool.ticks;
     return os;
 }
 
@@ -214,7 +137,6 @@ std::ostream& operator<<(std::ostream& os, const Pool<enable_float>& pool) {
 /// @dev not locked because it initializes unlocked
 template<bool enable_float>
 int24 initialize(Pool<enable_float> *o, PriceType sqrtPriceX96) {
-    // std::cerr << o->slot0.sqrtPriceX96 << std::endl;
     require(isZero(o->slot0.sqrtPriceX96), "AI");
     int24 tick = getTickAtSqrtRatio(sqrtPriceX96);
     o->slot0 = Slot0<enable_float>(sqrtPriceX96, tick);
@@ -228,20 +150,25 @@ std::pair<int256, int256> swap(
     uint160 sqrtPriceLimitX96,
     bool effect)
 {
-#ifdef DEBUG
-    std::cerr << "at the beginning of swap " << std::endl;
-    o->slot0.print();
-#endif
+
+    // std::cerr << "at the beginning of swap " << std::endl;
+    // o->slot0.print();
+
     require(amountSpecified != 0, "AS");
 
     Slot0<false> slot0Start = o->slot0;
 
+    // std::cerr << "check" << std::endl;
+    // std::cerr << zeroForOne << std::endl;
+    // std::cerr << sqrtPriceLimitX96 << " " << slot0Start.sqrtPriceX96 << std::endl;
+    // std::cerr << "Range [" << MIN_SQRT_RATIO << ", " << MAX_SQRT_RATIO << "]" << std::endl;
     require(
         zeroForOne
             ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > MIN_SQRT_RATIO
             : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < MAX_SQRT_RATIO,
         "SPL"
     );
+
 
     uint128 liquidityCache = o->liquidity;
 
@@ -258,23 +185,28 @@ std::pair<int256, int256> swap(
     // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
     while (state.amountSpecifiedRemaining != 0 && state.sqrtPriceX96 != sqrtPriceLimitX96) {
         StepComputations<false> step;
-        // std::cerr << state.amountSpecifiedRemaining << std::endl;
         step.sqrtPriceStartX96 = state.sqrtPriceX96;
-        std::tie(step.tickNext, step.initialized) = o->tickBitmap.nextInitializedTickWithinOneWord(
+
+        std::tie(step.tickNext, step.initialized) = nextInitializedTickWithinOneWord(
+            &(o->ticks),
             state.tick,
             o->tickSpacing,
             zeroForOne
         );
-        // std::cerr << "next tick = " << step.tickNext << std::endl;
+        // std::cerr << "Next " << zeroForOne << " of " << state.tick << " is " << step.tickNext->id << std::endl;
+        assert(zeroForOne == 1 || step.tickNext->id != state.tick);
         // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
-        if (step.tickNext < MIN_TICK) {
-            step.tickNext = MIN_TICK;
-        } else if (step.tickNext > MAX_TICK) {
-            step.tickNext = MAX_TICK;
+        if (step.tickNext->id < MIN_TICK) {
+            step.tickNext = &MIN_TICK_OBJ_FALSE;
+        } else if (step.tickNext->id > MAX_TICK) {
+            step.tickNext = &MAX_TICK_OBJ_FALSE;
         }
 
         // get the price for the next tick
-        step.sqrtPriceNextX96 = getSqrtRatioAtTick<uint160>(step.tickNext);
+        step.sqrtPriceNextX96 = getSqrtRatioAtTick<uint160>(step.tickNext->id);
+        // std::cerr << "Next tick id = " << step.tickNext->id << std::endl;
+        // std::cerr << "nextPrice = " << step.sqrtPriceNextX96 << std::endl;
+
 
         std::tie(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = computeSwapStep(
             state.sqrtPriceX96,
@@ -300,19 +232,19 @@ std::pair<int256, int256> swap(
         if (state.sqrtPriceX96 == step.sqrtPriceNextX96) {
             // if the tick is initialized, run the tick transition
             if (step.initialized) {
-                int128 liquidityNet = o->ticks.cross(step.tickNext);
+                int128 liquidityNet = step.tickNext->liquidityNet;
                 // safe because liquidityNet cannot be type(int128).min
                 if (zeroForOne) liquidityNet = -liquidityNet;
                 state.liquidity = addDelta(state.liquidity, liquidityNet);
             }
-            state.tick = zeroForOne ? step.tickNext - 1 : step.tickNext;
+            state.tick = zeroForOne ? step.tickNext->id - 1 : step.tickNext->id;
         } else if (state.sqrtPriceX96 != step.sqrtPriceStartX96) {
             // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
             state.tick = getTickAtSqrtRatio(state.sqrtPriceX96);
             // std::cerr << "?? state.sqrtPriceX96 = " << state.sqrtPriceX96 << " tick = " << state.tick << std::endl;
         }
     }
-
+    // std::cerr << "state.price = " << state.sqrtPriceX96 << std::endl;
     if(effect) {
         if (state.tick != slot0Start.tick) {
             o->slot0.sqrtPriceX96 = state.sqrtPriceX96;
@@ -333,6 +265,7 @@ std::pair<int256, int256> swap(
         amount0 = state.amountCalculated;
         amount1 = amountSpecified - state.amountSpecifiedRemaining;
     }
+    // std::cerr << "==== End FUNCTION ==== \n\n" << std::endl;
     return std::make_pair(amount0, amount1);
 }
 
@@ -382,7 +315,8 @@ std::pair<FloatType, FloatType> swap(
 
         step.sqrtPriceStartX96 = state.sqrtPriceX96;
 
-        std::tie(step.tickNext, step.initialized) = o->tickBitmap.nextInitializedTickWithinOneWord(
+        std::tie(step.tickNext, step.initialized) = nextInitializedTickWithinOneWord(
+            &(o->ticks),
             state.tick,
             o->tickSpacing,
             zeroForOne
@@ -390,14 +324,14 @@ std::pair<FloatType, FloatType> swap(
         // std::cerr << "next tick = " << step.tickNext << std::endl;
 
         // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
-        if (step.tickNext < MIN_TICK) {
-            step.tickNext = MIN_TICK;
-        } else if (step.tickNext > MAX_TICK) {
-            step.tickNext = MAX_TICK;
+        if (step.tickNext->id < MIN_TICK) {
+            step.tickNext = &MIN_TICK_OBJ_TRUE;
+        } else if (step.tickNext->id > MAX_TICK) {
+            step.tickNext = &MAX_TICK_OBJ_TRUE;
         }
 
         // get the price for the next tick
-        step.sqrtPriceNextX96 = getSqrtRatioAtTick<FloatType>(step.tickNext);
+        step.sqrtPriceNextX96 = getSqrtRatioAtTick<FloatType>(step.tickNext->id);
 
         std::tie(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = computeSwapStep(
             state.sqrtPriceX96,
@@ -423,14 +357,14 @@ std::pair<FloatType, FloatType> swap(
         if (fabs(state.sqrtPriceX96 - step.sqrtPriceNextX96) < EPS) {
             // if the tick is initialized, run the tick transition
             if (step.initialized) {
-                FloatType liquidityNet = o->ticks.cross(step.tickNext);
+                FloatType liquidityNet = step.tickNext->liquidityNet;
                 // if we're moving leftward, we interpret liquidityNet as the opposite sign
                 // safe because liquidityNet cannot be type(int128).min
                 if (zeroForOne) liquidityNet = -liquidityNet;
                 state.liquidity = addDelta(state.liquidity, liquidityNet);
             }
 
-            state.tick = zeroForOne ? step.tickNext - 1 : step.tickNext;
+            state.tick = zeroForOne ? step.tickNext->id - 1 : step.tickNext->id;
         } else if (fabs( state.sqrtPriceX96 - step.sqrtPriceStartX96) > EPS) {
             // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
             state.tick = getTickAtSqrtRatio(state.sqrtPriceX96);
@@ -477,53 +411,53 @@ void checkTicks(int24 tickLower, int24 tickUpper) {
 template<bool enable_float>
 void _updatePosition(
     Pool<enable_float> * o,
-    int24 tickLower,
-    int24 tickUpper,
-    typename std::conditional<enable_float, FloatType, int128>::type liquidityDelta,
-    int24 tick
+    int24 tickLowerId,
+    int24 tickUpperId,
+    typename std::conditional<enable_float, FloatType, int128>::type liquidityDelta
 ) {
 #ifdef DEBUG
-    std::cerr << "_updatePosition(tickLower = " << tickLower << ", tickUpper = " << tickUpper << ", liquidityDelta = " << liquidityDelta << ", tick = " << tick << ");" << std::endl;
+    std::cerr << "_updatePosition(tickLower = " << tickLowerId << ", tickUpper = " << tickUpperId << ", liquidityDelta = " << liquidityDelta << ");" << std::endl;
 #endif
     // if we need to update the ticks, do it
-    bool flippedLower;
-    bool flippedUpper;
+    bool erasedLower;
+    bool erasedUpper;
+    // std::cerr<< "============== One Round Start ============== " << std::endl;
     if (!isZero(liquidityDelta)) {
-        uint32 time = o->_blockTimestamp();
-        flippedLower = o->ticks.update(
+        auto tickLower = fetchTick(&o->ticks, tickLowerId);
+        auto tickUpper = fetchTick(&o->ticks, tickUpperId);
+
+        erasedLower = updateTick(
             tickLower,
-            tick,
             liquidityDelta,
-            time,
             false,
             o->maxLiquidityPerTick
         );
-        flippedUpper = o->ticks.update(
+        erasedUpper = updateTick(
             tickUpper,
-            tick,
             liquidityDelta,
-            time,
             true,
             o->maxLiquidityPerTick
         );
-
-        if (flippedLower) {
-            o->tickBitmap.flipTick(tickLower, o->tickSpacing);
+        if (erasedLower) {
+            // std::cerr << "!!erase " << tickLowerId << std::endl;
+            eraseTick(&o->ticks, tickLowerId, o->tickSpacing);
         }
-        if (flippedUpper) {
-            o->tickBitmap.flipTick(tickUpper, o->tickSpacing);
+        if (erasedUpper) {
+            // std::cerr << "!!erase " << tickUpperId << std::endl;
+            eraseTick(&o->ticks, tickUpperId, o->tickSpacing);
         }
     }
-
+    // std::cerr << "mid check" << std::endl;
     // clear any tick data that is no longer needed
     if (liquidityDelta < 0) {
-        if (flippedLower) {
-            o->ticks.clear(tickLower);
+        if (erasedLower) {
+            clearTick(&o->ticks, tickLowerId);
         }
-        if (flippedUpper) {
-            o->ticks.clear(tickUpper);
+        if (erasedUpper) {
+            clearTick(&o->ticks, tickUpperId);
         }
     }
+    // std::cerr<< "============== One Round END  ============== " << std::endl;
 }
 
 template<bool enable_float>
@@ -539,11 +473,12 @@ _modifyPosition(Pool<enable_float> * o, ModifyPositionParams<enable_float> param
         o,
         params.tickLower,
         params.tickUpper,
-        params.liquidityDelta,
-        _slot0.tick
+        params.liquidityDelta
     );
 
     typename std::conditional<enable_float, FloatType, int256>::type amount0 = 0, amount1 = 0;
+
+    // std::cerr << "?? " << params.tickLower << " " << params.tickUpper << " " << params.liquidityDelta << std::endl;
 
     if (!isZero(params.liquidityDelta)) {
         if (_slot0.tick < params.tickLower) {
@@ -558,7 +493,8 @@ _modifyPosition(Pool<enable_float> * o, ModifyPositionParams<enable_float> param
         } else if (_slot0.tick < params.tickUpper) {
             // current tick is inside the passed range
             // std::cerr << "Price = " <<  _slot0.sqrtPriceX96 << std::endl;
-            // std::cerr << "value = " << getSqrtRatioAtTick<PriceType>(params.tickLower) << " " << getSqrtRatioAtTick<PriceType>(params.tickUpper) << std::endl;
+            // std::cerr << "value0 = " << params.tickLower << " " << getSqrtRatioAtTick<PriceType>(params.tickLower) << std::endl;
+            // std::cerr << "value1 = " << params.tickUpper << " " << getSqrtRatioAtTick<PriceType>(params.tickUpper) << std::endl;
             // std::cerr << "liqdata = " << params.liquidityDelta << std::endl;
             LiquidityType liquidityBefore = o->liquidity; // SLOAD for gas optimization
             amount0 = getAmount0Delta(
@@ -596,7 +532,6 @@ _modifyPosition(Pool<enable_float> * o, ModifyPositionParams<enable_float> param
 template<bool enable_float>
 typename std::conditional<enable_float, std::pair<FloatType, FloatType>, std::pair<uint256, uint256>>::type mint(
     Pool<enable_float> * o,
-    address recipient,
     int24 tickLower,
     int24 tickUpper,
     typename std::conditional<enable_float, FloatType, uint128>::type amount,
@@ -609,7 +544,7 @@ typename std::conditional<enable_float, std::pair<FloatType, FloatType>, std::pa
     AmountType amount0Int, amount1Int;
     std::tie(amount0Int, amount1Int) = _modifyPosition<enable_float>(
         o,
-        ModifyPositionParams<enable_float>(recipient, tickLower, tickUpper, (AmountType)(amount))
+        ModifyPositionParams<enable_float>(tickLower, tickUpper, (AmountType)(amount))
     );
 
     FinalAmountType amount0 = (FinalAmountType)(amount0Int);
@@ -634,7 +569,7 @@ typename std::conditional<enable_float, std::pair<FloatType, FloatType>, std::pa
     AmountType amount0Int, amount1Int;
     std::tie(amount0Int, amount1Int) = _modifyPosition(
         o,
-        ModifyPositionParams<enable_float>(msg.sender, tickLower, tickUpper, -(AmountType)(amount))
+        ModifyPositionParams<enable_float>(tickLower, tickUpper, -(AmountType)(amount))
     );
 
     FinalAmountType amount0 = (FinalAmountType)(-amount0Int);
