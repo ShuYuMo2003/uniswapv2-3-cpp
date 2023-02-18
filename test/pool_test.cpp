@@ -298,7 +298,7 @@ int main(int argc, char *argv[]) {
     std::cout << "\t\t\tmaximum mistake = \t" << MAX_DIFF << std::endl;
     // std::cerr << "cache rate = " << pool.tickBitmap.cacheRate() << " " << pool.tickBitmap.cacheMiss << " " << pool.tickBitmap.cacheTotal<< std::endl;
 
-    pool->save("pool_state");
+    SavePool(pool, "pool_state");
     free(pool);
     free(back);
     free(poolFloat);

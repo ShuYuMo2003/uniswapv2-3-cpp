@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <cassert>
 #include <iomanip>
+#include <cstdlib>
 
 uint256 dis(uint256 a, uint256 b) {
     if (a < b) std::swap(a, b);
@@ -19,7 +20,8 @@ int    TOT_CNT  = 0;
 
 
 std::pair<uint256, uint256> swapWithCheck(
-    Pool<false> & pool,
+    Pool<false> * pool,
+    Pool<true> * PoolFloat,
     address a,
     bool zeroToOne,
     int256 amountSpecified,
@@ -64,12 +66,11 @@ std::pair<uint256, uint256> swapWithCheck(
 
 
 // not calc time:
-    Pool<true> PoolFloat;
-    GenerateFloatPool(&pool, &PoolFloat);
+    GenerateFloatPool(pool, PoolFloat);
 
-    auto ret0 = swap(&PoolFloat, zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble(), true);
+    auto ret0 = swap(PoolFloat, zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble(), true);
 
-    auto ret1 = swap(&pool, zeroToOne, amountSpecified, sqrtPriceLimitX96, true);
+    auto ret1 = swap(pool, zeroToOne, amountSpecified, sqrtPriceLimitX96, true);
 
     double diffe;
     if (zeroToOne^(amountSpecified > 0)) {
@@ -111,16 +112,18 @@ int main(int argc, char *argv[]) {
     int fee, tickSpacing;
     uint256 maxLiquidityPerTick;
     std::cin >> fee >> tickSpacing >> maxLiquidityPerTick;
-    Pool<false> pool;
+
+    Pool<false> * pool = (Pool<false> *)malloc(1024 * 1024); // 1 MB.
+    Pool<false> * back = (Pool<false> *)malloc(1024 * 1024);
+    Pool<true>  * poolFloat = (Pool<true> *)malloc(1024 * 1024);
+
+
     int stBlock = 0;
     if (argc > 1) {
-        // stBlock = atoi(argv[1]);
-        // std::ifstream fin(argv[2]);
-        std::ifstream fin(argv[1]);
-        fin >> pool;
-        fin.close();
+        LoadPool(pool, argv[1]);
     } else {
-        pool = Pool<false>(fee, tickSpacing, maxLiquidityPerTick);
+        Pool<false> temp(fee, tickSpacing, maxLiquidityPerTick);
+        CopyPool(&temp, pool);
     }
     // std::cout << pool.slot0 << std::endl;
     // pool.save("tmp0");
@@ -131,11 +134,10 @@ int main(int argc, char *argv[]) {
     long long timeCnt[4] = {0};
     int tick, tickLower, tickUpper, zeroToOne, t = 0, blockNum;
     while (std::cin >> met) {
-
-        Pool back = pool;
+        CopyPool(pool, back);
         // Pool pool("tmp" + std::to_string(t)), back = pool;
         // pool.save("tmpread" + std::to_string(t));
-        std::cin >> sender; msg.sender.FromString(sender);
+        std::cin >> sender;
         ++t;
         // std::cerr << "Got contract = " << met << " No." << (t) << std::endl;
         if(t % 2000 == 0) std::cerr << "to handle " << t << std::endl;
@@ -152,14 +154,14 @@ int main(int argc, char *argv[]) {
         if (met == "initialize") {
             cnt[0]++;
             long long start = getTimeNs();
-            int r = initialize(&pool, price);
+            int r = initialize(pool, price);
             // std::cout << price << " " << r << " " << tick << std::endl;
             assert(r == tick);
             timeCnt[0] += getTimeNs() - start;
         } else if (met == "mint") {
             cnt[1]++;
             long long start = getTimeNs();
-            std::tie(ruamount0, ruamount1) = mint(&pool, sender, tickLower, tickUpper, liquidity, "");
+            std::tie(ruamount0, ruamount1) = mint(pool, tickLower, tickUpper, liquidity, "");
             timeCnt[1] += getTimeNs() - start;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
@@ -172,15 +174,17 @@ int main(int argc, char *argv[]) {
             bool suc = false;
             long long timer = 0;
             for (int i = 0; i < 3; ++i) {
-                if (i) pool = back;
+                if (i) {
+                    CopyPool(back, pool);
+                }
                 // std::cout << "================= Swap attempt " << (i + 1) << "==================\n";
-                if (i == 0) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount, _price, "", timer);
+                if (i == 0) std::tie(ramount0, ramount1) = swapWithCheck(pool, poolFloat, sender, zeroToOne, amount, _price, "", timer);
                 else if (i == 1) {
                     std::string k = zeroToOne ? amount1 : amount0;
                     if (k == "0") continue;
-                    std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, k, _price, "", timer);
+                    std::tie(ramount0, ramount1) = swapWithCheck(pool, poolFloat, sender, zeroToOne, k, _price, "", timer);
                 }
-                else if (i == 2) std::tie(ramount0, ramount1) = swapWithCheck(pool, sender, zeroToOne, amount + "0", price, "", timer);
+                else if (i == 2) std::tie(ramount0, ramount1) = swapWithCheck(pool, poolFloat, sender, zeroToOne, amount + "0", price, "", timer);
                 // std::cout << "amount0: " << ramount0 << " " << amount0 << std::endl;
                 // std::cout << "amount1: " << ramount1 << " " << amount1 << std::endl;
                 // std::cout << "liquidity: " << pool.liquidity << " " << liquidity << std::endl;
@@ -188,8 +192,8 @@ int main(int argc, char *argv[]) {
                 // std::cout << "price: " << pool.slot0.sqrtPriceX96 << " " << price << std::endl;
                 // std::cout << "============== Swap attempt " << (i + 1) << " END ================\n";
                 if (ramount0 == amount0 && ramount1 == amount1
-                    && pool.liquidity == liquidity && pool.slot0.tick == tick
-                    && pool.slot0.sqrtPriceX96 == price) {
+                    && pool->liquidity == liquidity && pool->slot0.tick == tick
+                    && pool->slot0.sqrtPriceX96 == price) {
                     suc = true;
                     break;
                 }
@@ -199,7 +203,7 @@ int main(int argc, char *argv[]) {
         } else if (met == "burn") {
             cnt[3]++;
             long long start = getTimeNs();
-            std::tie(ruamount0, ruamount1) = burn(&pool, tickLower, tickUpper, amount);
+            std::tie(ruamount0, ruamount1) = burn(pool, tickLower, tickUpper, amount);
             // std::cout << tickLower << " " << tickUpper << " " << amount << std::endl;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
@@ -242,5 +246,9 @@ int main(int argc, char *argv[]) {
     std::cout << "\t\t\tmaximum mistake = \t" << MAX_DIFF << std::endl;
     // std::cerr << "cache rate = " << pool.tickBitmap.cacheRate() << " " << pool.tickBitmap.cacheMiss << " " << pool.tickBitmap.cacheTotal<< std::endl;
 
-    pool.save("pool_state");
+    SavePool(pool, "pool_state");
+    free(pool);
+    free(back);
+    free(poolFloat);
+    return 0;
 }

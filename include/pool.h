@@ -53,17 +53,6 @@ struct Pool{
         liquidity = 0;
         poolType = enable_float;
     }
-    Pool(std::string filename) {
-        poolType = enable_float;
-        std::ifstream fin(filename);
-        fin >> *this;
-        fin.close();
-    }
-    void save(std::string filename) {
-        std::ofstream fout(filename);
-        fout << *this;
-        fout.close();
-    }
     const Pool & operator=(const Pool &o) {
         assert(("Don't use default copy on pool, You should use `CopyPool()` to do that.", false));
     }
@@ -93,6 +82,31 @@ size_t CopyPool(Pool<enable_float> * from, Pool<enable_float> * to) {
 
     memcpy(to, from, UpperAddress - lowerAddress);
     return UpperAddress - lowerAddress;
+}
+
+template<bool enable_float>
+void SavePool(Pool<enable_float> * o, std::string filename) {
+    char * lowerAddress = fetchLowerAddress(o);
+    char * UpperAddress = fetchUpperAddress(o);
+    size_t size = UpperAddress - lowerAddress;
+
+    FILE * fptr = fopen(filename.c_str(), "wb");
+    assert(fptr != NULL);
+    fwrite(o, 1, size, fptr);
+    fclose(fptr);
+}
+
+template<bool enable_float>
+void LoadPool(Pool<enable_float> * o, std::string filename) {
+    static char buffer[1024 * 1024];
+
+    FILE * fptr = fopen(filename.c_str(), "rb");
+
+    assert(fptr != NULL);
+    fread(buffer, 1024, 1024, fptr);
+    fclose(fptr);
+
+    CopyPool((Pool<enable_float> *)buffer, o);
 }
 
 void GenerateFloatPool(const Pool<false> * from, Pool<true> * to) {
