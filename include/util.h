@@ -28,8 +28,8 @@ void require(bool condition, std::string msg = "") {
 
 
 template<typename T>
-bool isZero(T & o) { return o == 0; }
+bool isZero(T o) { return o == 0; }
 
 template<>
-bool isZero<FloatType>(FloatType & o) { return fabs(o) < EPS; }
+bool isZero<FloatType>(FloatType o) { return fabs(o) < EPS; }
 #endif

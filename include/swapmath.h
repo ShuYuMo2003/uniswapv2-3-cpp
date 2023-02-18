@@ -24,13 +24,15 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
     uint24 feePips
 ) {
 
-    // std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
+    // std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96.X96ToDouble() << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96.X96ToDouble() << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
 
     bool zeroForOne = sqrtRatioCurrentX96 >= sqrtRatioTargetX96;
     bool exactIn = amountRemaining >= 0;
 
     uint160 sqrtRatioNextX96;
     uint256 amountIn, amountOut, feeAmount;
+
+    // std::cerr << "ARG: " << zeroForOne << " " << exactIn << std::endl;
 
     if (exactIn) {
         uint256 amountRemainingLessFee = mulDiv(uint256(amountRemaining) , uint24(1e6) - feePips, uint24(1e6));
@@ -100,14 +102,15 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
     const FloatType & amountRemaining,
     const uint24 & feePips
 ) {
-#ifdef DEBUG
-    std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
-#endif
-    bool zeroForOne = sqrtRatioCurrentX96 >= sqrtRatioTargetX96;
-    bool exactIn = amountRemaining >= 0;
+    // std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
+
+    bool zeroForOne = sqrtRatioCurrentX96 > sqrtRatioTargetX96 || (fabs(sqrtRatioCurrentX96 - sqrtRatioTargetX96) < EPS);
+    bool exactIn = amountRemaining > 0 || (fabs(amountRemaining) < EPS);
 
     FloatType sqrtRatioNextX96;
     FloatType amountIn, amountOut, feeAmount;
+
+    // std::cerr << "ARG: " << zeroForOne << " " << exactIn << std::endl;
 
     if (exactIn) {
         FloatType amountRemainingLessFee = mulDiv(amountRemaining , 1e6 - feePips, 1e6);

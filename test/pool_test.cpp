@@ -68,9 +68,9 @@ std::pair<uint256, uint256> swapWithCheck(
 
 
 // not calc time:
-    // std::cerr << "====================== FloatT =====================" << std::endl;
+    // std::cerr << "\n====================== FloatT =====================" << std::endl;
     auto ret0 = swap(PoolFloat, zeroToOne, amountSpecified.ToDouble(), sqrtPriceLimitX96.X96ToDouble(), true);
-    // std::cerr << "====================== BigInt =====================" << std::endl;
+    // std::cerr << "\n\n====================== BigInt =====================" << std::endl;
     auto ret1 = swap(pool, zeroToOne, amountSpecified, sqrtPriceLimitX96, true);
 
 
@@ -111,14 +111,14 @@ double comparison(double x, double y) {
 }
 
 int main(int argc, char *argv[]) {
-    std::ifstream slot0saver("pool_slot0_state");
-    std::ofstream hideinfo("hideinfo");
+    // std::ifstream slot0saver("pool_slot0_state");
+    // std::ofstream hideinfo("hideinfo");
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(20);
     std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(7);
     std::cerr << "Initializing tick price" << std::endl;
     initializeTicksPrice();
     std::cerr << "Tick price initialized" << std::endl;
-    // std::ios::sync_with_stdio(false);
+    std::ios::sync_with_stdio(false);
     freopen("pool_events_test_", "r", stdin);
     int fee, tickSpacing;
     uint256 maxLiquidityPerTick;
@@ -132,15 +132,13 @@ int main(int argc, char *argv[]) {
 
 
 
-    // FILE * fptr = fopen("pool_temp_state", "r");
-    // fread(pool, 1, 1024 * 1024, fptr);
-    // fclose(fptr);
-    // std::cerr << "fee = " << pool->fee << std::endl;
+    // LoadPool(pool, "temp_pool_state_bigint");
+    // LoadPool(poolFloat, "temp_pool_state_float");
 
 
     Pool<false> temppool(fee, tickSpacing, maxLiquidityPerTick);
     CopyPool(&temppool, pool);
-
+    GenerateFloatPool(pool, poolFloat);
 
     uint256 ruamount0, ruamount1;
     int256 ramount0, ramount1;
@@ -150,9 +148,11 @@ int main(int argc, char *argv[]) {
     long long timeCnt[4] = {0};
     int tick, tickLower, tickUpper, zeroToOne, t = 0, blockNum;
 
-    GenerateFloatPool(pool, poolFloat);
 
     int lastBlock = 0;
+
+    lastBlock = 15032524;
+
     while (std::cin >> met) {
         std::cin >> sender;
         ++t;
@@ -164,14 +164,12 @@ int main(int argc, char *argv[]) {
         else if (met == "burn") std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
         std::cin >> blockNum;
 
-        // if (t <= 446538) continue;
+        // if (t <= 2239327) continue;
 
         if(lastBlock != blockNum) {
             GenerateFloatPool(pool, poolFloat);
             lastBlock = blockNum;
         }
-        CopyPool(pool, back);
-        CopyPool(poolFloat, backFloat);
 
         // std::cerr << "\n\n======================== Got contract = " << met << " No." << (t) << " =========================== "<< std::endl;
         if (met == "initialize") {
@@ -199,6 +197,8 @@ int main(int argc, char *argv[]) {
             assert(comparison(ruamount1.ToDouble(), ruamount1_fuck) < MAX_DEVIATION);
             // assert(dis(ruamount0, amount0) <= 100 && dis(ruamount1, amount1) < 100);
         } else if (met == "swap") {
+            CopyPool(pool, back);
+            CopyPool(poolFloat, backFloat);
             cnt[2]++;
             // std::cout << zeroToOne << " " << amount << " " << price << std::endl;
             std::string _price = zeroToOne ? "4295128740" : "1461446703485210103287273052203988822378723970341";
@@ -258,6 +258,7 @@ int main(int argc, char *argv[]) {
             // std::cout << amount0 << " " << amount1 << std::endl;
             // assert(ruamount0 == amount0 && ruamount1 == amount1);
         }
+        // assert(pool->slot0.tick == poolFloat->slot0.tick);
         // std::string slprice; int sltick, tickcnt;
         // slot0saver >> slprice >> sltick >> tickcnt;
 
@@ -277,12 +278,14 @@ int main(int argc, char *argv[]) {
         // }
         // std::cerr << "+++" << std::endl;
         // hideinfo << t << std::endl;
-        // if(t == 446538) {
-        //     FILE * fptr = fopen("pool_temp_state", "w");
-        //     fwrite(pool, 1, 1024 * 1024, fptr);
-        //     fclose(fptr);
+        // if(t == 2239327) {
+        //    SavePool(pool, "temp_pool_state_bigint");
+        //    SavePool(poolFloat, "temp_pool_state_float");
+        //    std::cout << lastBlock << std::endl;
         // }
-        SavePool(pool, "pool_state");
+        // assert(t != 2239328);
+        // SavePool(pool, "pool_state");
+        // if(t == 2239330) break;
     }
     std::cout << "\n\n" << std::endl;
     for (int i = 0; i < 4; ++i) {
