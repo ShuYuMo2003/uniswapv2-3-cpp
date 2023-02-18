@@ -2,13 +2,14 @@
 #include <cstdio>
 #include <ctime>
 #include <cstring>
+#include <cstdlib>
 #include "../include/types.h"
 #include "../include/pool.h"
 
 using namespace std;
 
 int UNI_DATA_SIZE = -1;
-const int TEST_TIME = 2e7;
+const int TEST_TIME = 1e8;
 
 int TOT_CNT = 0;
 double MAX_DIFF = -1, TOT_DIFF = 0;
@@ -37,7 +38,7 @@ vector<testcase> tc;
 vector<pair<double, double>> result;
 
 void generateFromExpon(Pool<false> * pool) {
-    for(uint160 amount = 10; amount < uint160("94033269757636"); (amount *= 18) /= 10) {
+    for(uint160 amount = 10; amount < uint160("94033269757636"); (amount *= 14) /= 10) {
         testcase now;
         now.zeroToOne  =  1;
         now.raw_amount =  amount;
@@ -47,7 +48,7 @@ void generateFromExpon(Pool<false> * pool) {
         tc.push_back(now);
         // cout << amount << endl;
     }
-    for(uint160 amount = 10; amount < uint160("65308223357628934551218"); (amount *= 18) /= 10) {
+    for(uint160 amount = 10; amount < uint160("65308223357628934551218"); (amount *= 14) /= 10) {
         testcase now;
         now.zeroToOne  =  0;
         now.raw_amount =  amount;
@@ -100,24 +101,28 @@ int main(){
     initializeTicksPrice();
     cerr << "Generating data." << endl;
 
-    Pool<false> pool("pool_state");
+    Pool<false> *pool       = (Pool<false> *)malloc(100 * 1024);
+    Pool<true>  *pool_float = (Pool<true>  *)malloc(100 * 1024);
 
-    //generateFromExpon(&pool);
-    generateFromEvent(&pool);
+    LoadPool(pool, "pool_state");
+    GenerateFloatPool(pool, pool_float);
+
+
+    generateFromExpon(pool);
+    // generateFromEvent(pool);
 
 
     cerr << "done generated data cnt = " << UNI_DATA_SIZE << endl;
-    Pool<true> pool_float;
-    GenerateFloatPool(&pool, &pool_float);
 
-    // TestCertainPoint(&pool, &pool_float, int256("8310258772"), 0);
+
+    // TestCertainPoint(pool, pool_float, int256("8310258772"), 0);
     // return 0;
 
     cerr << "run" << endl;
     double timer = clock(); int uniq_id = 0;
     for(int i = 0; i < TEST_TIME; i++, uniq_id++) {
         if(uniq_id == UNI_DATA_SIZE) uniq_id = 0;
-        result[uniq_id] = swap_handle(&pool_float, tc[uniq_id].zeroToOne, tc[uniq_id].amount);
+        result[uniq_id] = swap_handle(pool_float, tc[uniq_id].zeroToOne, tc[uniq_id].amount);
     }
     timer = (clock() - timer) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
     timer /= TEST_TIME;
@@ -149,5 +154,7 @@ int main(){
     printf("Time used        = %.5lf ns\n", timer);
     printf("Maximum mistake  = %.30lf\n", MAX_DIFF);
     printf("Average mistake  = %.30f\n", TOT_DIFF / TOT_CNT);
+    free(pool);
+    free(pool_float);
     return 0;
 }

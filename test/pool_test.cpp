@@ -282,6 +282,7 @@ int main(int argc, char *argv[]) {
         //     fwrite(pool, 1, 1024 * 1024, fptr);
         //     fclose(fptr);
         // }
+        SavePool(pool, "pool_state");
     }
     std::cout << "\n\n" << std::endl;
     for (int i = 0; i < 4; ++i) {
