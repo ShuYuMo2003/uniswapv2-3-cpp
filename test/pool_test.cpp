@@ -112,7 +112,7 @@ double comparison(double x, double y) {
 
 int main(int argc, char *argv[]) {
     // std::ifstream slot0saver("pool_slot0_state");
-    // std::ofstream hideinfo("hideinfo");
+    std::ofstream hideinfo("hideinfo");
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(20);
     std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(7);
     std::cerr << "Initializing tick price" << std::endl;
@@ -147,11 +147,9 @@ int main(int argc, char *argv[]) {
     int cnt[4] = {0};
     long long timeCnt[4] = {0};
     int tick, tickLower, tickUpper, zeroToOne, t = 0, blockNum;
-
-
     int lastBlock = 0;
 
-    lastBlock = 15032524;
+    lastBlock = 15932358;
 
     while (std::cin >> met) {
         std::cin >> sender;
@@ -164,7 +162,7 @@ int main(int argc, char *argv[]) {
         else if (met == "burn") std::cin >> tickLower >> tickUpper >> amount >> amount0 >> amount1;
         std::cin >> blockNum;
 
-        // if (t <= 2239327) continue;
+        // if (t <= 3521059) continue;
 
         if(lastBlock != blockNum) {
             GenerateFloatPool(pool, poolFloat);
@@ -278,7 +276,7 @@ int main(int argc, char *argv[]) {
         // }
         // std::cerr << "+++" << std::endl;
         // hideinfo << t << std::endl;
-        // if(t == 2239327) {
+        // if(t == 3521059) {
         //    SavePool(pool, "temp_pool_state_bigint");
         //    SavePool(poolFloat, "temp_pool_state_float");
         //    std::cout << lastBlock << std::endl;

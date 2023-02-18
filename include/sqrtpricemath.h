@@ -180,7 +180,7 @@ FloatType getAmount0Delta(
     FloatType sqrtRatioAX96,
     FloatType sqrtRatioBX96,
     FloatType liquidity,
-    bool roundUp
+    int roundUp
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
@@ -189,12 +189,14 @@ FloatType getAmount0Delta(
 
     require(sqrtRatioAX96 > 0, "QWQ");
 
-    if (roundUp) {
+    if (roundUp == 1) {
         return ceil((numerator1 * numerator2 / sqrtRatioBX96) / sqrtRatioAX96);
-    } else {
+    } else if(roundUp == 0){
         // FloatType ret = (numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96;
         // FloatType ret_temp0 = floor(ret), ret_temp1 = floor(ret + 0.5);
         return floor((numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96); //ret_temp0 == ret_temp1 ? ret_temp0 : ret;
+    } else {
+        return (numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96;
     }
 }
 
@@ -224,14 +226,19 @@ FloatType getAmount1Delta(
     FloatType sqrtRatioAX96,
     FloatType sqrtRatioBX96,
     FloatType liquidity,
-    bool roundUp
+    int roundUp
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
-    if (roundUp) {
+    if(fabs(sqrtRatioAX96 - sqrtRatioBX96) < 1e-11)
+        sqrtRatioAX96 = sqrtRatioBX96;
+
+    if (roundUp == 1) {
         return ceil(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
-    } else {
+    } else if(roundUp == 0) {
         return floor(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
+    } else {
+        return liquidity * (sqrtRatioBX96 - sqrtRatioAX96);
     }
 }
 
@@ -268,6 +275,7 @@ int256 getAmount1Delta(
     uint160 sqrtRatioBX96,
     int128 liquidity
 ) {
+    // std::cerr << "++ fetch " << sqrtRatioAX96.X96ToDouble() << " " << sqrtRatioBX96.X96ToDouble() << " " << liquidity << std::endl;
     return
         liquidity < 0
             ? uint256(0) - getAmount1Delta(sqrtRatioAX96, sqrtRatioBX96, uint128(-liquidity), false)
@@ -279,6 +287,7 @@ FloatType getAmount1Delta(
     FloatType sqrtRatioBX96,
     FloatType liquidity
 ) {
+    // std::cerr << "++ fetch " << sqrtRatioAX96 << " " << sqrtRatioBX96 << " " << liquidity << std::endl;
     return
         liquidity < 0
             ? -getAmount1Delta(sqrtRatioAX96, sqrtRatioBX96, -liquidity, false)
