@@ -26,10 +26,11 @@ void require(bool condition, std::string msg = "") {
     ASSERT(condition, "msg: " << msg);
 }
 
+#define abs(o) ((o) < 0 ? (-(o)) : (o))
 
 template<typename T>
-bool isZero(T o) { return o == 0; }
+bool isZero(T & o) { return o == 0; }
 
 template<>
-bool isZero<FloatType>(FloatType o) { return fabs(o) < EPS; }
+bool isZero<FloatType>(FloatType & o) { return fabs(o) < EPS; }
 #endif

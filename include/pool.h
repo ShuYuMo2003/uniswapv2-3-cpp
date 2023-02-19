@@ -164,6 +164,7 @@ std::pair<int256, int256> swap(
     uint160 sqrtPriceLimitX96,
     bool effect)
 {
+    bool newOperation = true;
     // std::cerr << "at the beginning of swap " << std::endl;
     // o->slot0.print();
 
@@ -204,9 +205,10 @@ std::pair<int256, int256> swap(
             &(o->ticks),
             state.tick,
             o->tickSpacing,
-            zeroForOne
+            zeroForOne,
+            newOperation
         );
-
+        newOperation = false;
         // std::cerr << "Nxt tick of " << state.tick << " is " << step.tickNext->id << std::endl;
         // std::cerr << "Next " << zeroForOne << " of " << state.tick << " is " << step.tickNext->id << std::endl;
         // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
@@ -299,9 +301,7 @@ std::pair<FloatType, FloatType> swap(
     FloatType sqrtPriceLimitX96,
     bool effect)
 {
-
-    // std::cerr << "At the beginning of swap " << std::endl;
-    // o->slot0.print();
+    bool newOperation = true;
 
     require(fabs(amountSpecified) > EPS, "AS");
 
@@ -326,10 +326,12 @@ std::pair<FloatType, FloatType> swap(
     while (fabs(state.amountSpecifiedRemaining) > EPS
         && amountSpecified * state.amountSpecifiedRemaining > 0
         && fabs(state.sqrtPriceX96 - sqrtPriceLimitX96) > EPS) {
-        // std::cerr << state.amountSpecifiedRemaining << std::endl;
+
         if(fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) < EPS) cnt++;
         else cnt = 0;
         if (cnt > 2) break;
+
+        // printf("%d Remainding = %.5lf\n", cnt, state.amountSpecifiedRemaining);
 
         lastAmountSpecifiedRemaining = state.amountSpecifiedRemaining;
 
@@ -337,13 +339,16 @@ std::pair<FloatType, FloatType> swap(
 
         step.sqrtPriceStartX96 = state.sqrtPriceX96;
 
+        // std::cerr << "? Query " << zeroForOne << " " << state.tick << std::endl;
         std::tie(step.tickNext, step.initialized) = nextInitializedTickWithinOneWord(
             &(o->ticks),
             state.tick,
             o->tickSpacing,
-            zeroForOne
+            zeroForOne,
+            newOperation
         );
-        // std::cerr << "Nxt tick of " << state.tick << " is " << step.tickNext->id << std::endl;
+        newOperation = false;
+        // std::cerr << zeroForOne << " Nxt tick of " << state.tick << " is " << step.tickNext->id << std::endl << std::endl;
 
         // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
         if (step.tickNext->id < MIN_TICK) {

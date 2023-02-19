@@ -12,8 +12,8 @@
 
 
 #define GWordPos(a) ((a) >> 8)
-#define fetchLowerBound(a) ((a) * 256) // 右移负数是 UB
-#define fetchUpperBound(a) (((a) * 256) + 255)
+#define fetchLowerBound(a) ((a) << 8) // 右移负数是 UB
+#define fetchUpperBound(a) (((a) << 8) | 255)
 
 template<bool enable_float>
 inline bool tickCmp(const _Tick<enable_float> & lhs, const _Tick<enable_float> & rhs) {
@@ -81,8 +81,11 @@ std::pair<_Tick<enable_float> *, bool> nextInitializedTickWithinOneWord(
     Ticks<enable_float> * o,
     int24 tick,
     int24 tickspace,
-    bool lte
+    bool lte,
+    bool newOperation
 ) {
+    static _Tick<enable_float> * cache = NULL;
+
     _Tick<enable_float> * beginPtr = (&o->temp) + 1;
     _Tick<enable_float> * endPtr   = beginPtr + o->length;
     if(tick < 0 && tick % tickspace != 0) {
@@ -90,33 +93,78 @@ std::pair<_Tick<enable_float> *, bool> nextInitializedTickWithinOneWord(
     } else {
         tick /= tickspace;
     }
+    bool useCache = (!newOperation && cache != NULL);
+    if(useCache) {
+        assert(beginPtr <= cache && cache < endPtr);
 
-    if(lte) {
-        auto [wordPos, bitPos] = position(tick);
+        if(lte) {
+            auto [wordPos, bitPos] = position(tick);
 
-        o->temp.id = tick * tickspace;
-        _Tick<enable_float> * next = std::upper_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
+            int tmp = cache->id / tickspace;
+            while(tmp > tick) {
+                cache--;
+                if(cache < beginPtr || GWordPos((tmp = (cache->id / tickspace))) != wordPos){
+                    cache = NULL;
+                    break;
+                }
+            }
 
-        if(next == beginPtr || GWordPos((next - 1)->id / tickspace) != wordPos){
-            o->temp.id = fetchLowerBound(wordPos) * tickspace;
-            return std::make_pair(&(o->temp), false);
+            if(cache == NULL) {
+                o->temp.id = fetchLowerBound(wordPos) * tickspace;
+                return std::make_pair(&(o->temp), false);
+            } else {
+                return std::make_pair(cache, true);
+            }
         } else {
-            return std::make_pair(next - 1, true);
+            auto [wordPos, bitPos] = position(tick + 1);
+
+            int tmp = cache->id / tickspace;
+            while(tmp <= tick) {
+                cache++;
+                if(cache >= endPtr || GWordPos(tmp = (cache->id / tickspace)) != wordPos) {
+                    cache = NULL;
+                    break;
+                }
+            }
+
+            if(cache == NULL) {
+                o->temp.id = fetchUpperBound(wordPos) * tickspace;
+                return std::make_pair(&(o->temp), false);
+            } else {
+                return std::make_pair(cache, true);
+            }
+
         }
     } else {
-        tick += 1;
-        auto [wordPos, bitPos] = position(tick);
+        if(lte) {
+            auto [wordPos, bitPos] = position(tick);
 
-        o->temp.id = tick * tickspace;
-        _Tick<enable_float> * next = std::lower_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
+            o->temp.id = tick * tickspace;
+            _Tick<enable_float> * next = std::upper_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
 
-        if(next == endPtr || GWordPos(next->id / tickspace) != wordPos){
-            o->temp.id = fetchUpperBound(wordPos) * tickspace;
-            return std::make_pair(&(o->temp), false);
+            if(next == beginPtr || GWordPos((next - 1)->id / tickspace) != wordPos){
+                o->temp.id = fetchLowerBound(wordPos) * tickspace;
+                cache = NULL;
+                return std::make_pair(&(o->temp), false);
+            } else {
+                return std::make_pair(cache = (next - 1), true);
+            }
         } else {
-            return std::make_pair(next, true);
-        }
+            tick += 1;
+            auto [wordPos, bitPos] = position(tick);
 
+            o->temp.id = tick * tickspace;
+            _Tick<enable_float> * next = std::lower_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
+
+            if(next == endPtr || GWordPos(next->id / tickspace) != wordPos){
+                o->temp.id = fetchUpperBound(wordPos) * tickspace;
+                cache =  NULL;
+                return std::make_pair(&(o->temp), false);
+            } else {
+                return std::make_pair(cache = next, true);
+            }
+
+        }
     }
 
 }

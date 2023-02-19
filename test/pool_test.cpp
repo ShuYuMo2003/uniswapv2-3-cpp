@@ -17,7 +17,7 @@ const int repeatTimes = 1000;
 double MAX_DIFF = -1;
 double TOT_DIFF = 0;
 int    TOT_CNT  = 0;
-const double MAX_DEVIATION = 0.001;
+const double MAX_DEVIATION = 1e-5;
 
 
 
@@ -189,8 +189,10 @@ int main(int argc, char *argv[]) {
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
             assert(ruamount0 == amount0 && ruamount1 == amount1);
-            // std::cerr << "MINT RET: " << ruamount0.ToDouble() << " " << ruamount0_fuck << std::endl;
-            // std::cerr << "MINT RET: " << ruamount1.ToDouble() << " " << ruamount1_fuck << std::endl;
+            if(comparison(ruamount0.ToDouble(), ruamount0_fuck) < MAX_DEVIATION && comparison(ruamount1.ToDouble(), ruamount1_fuck) < MAX_DEVIATION); else {
+                std::cerr << "MINT RET: " << ruamount0.ToDouble() << " " << ruamount0_fuck << std::endl;
+                std::cerr << "MINT RET: " << ruamount1.ToDouble() << " " << ruamount1_fuck << std::endl;
+            }
             assert(comparison(ruamount0.ToDouble(), ruamount0_fuck) < MAX_DEVIATION);
             assert(comparison(ruamount1.ToDouble(), ruamount1_fuck) < MAX_DEVIATION);
             // assert(dis(ruamount0, amount0) <= 100 && dis(ruamount1, amount1) < 100);
@@ -241,9 +243,10 @@ int main(int argc, char *argv[]) {
             // std::cout << tickLower << " " << tickUpper << " " << amount << std::endl;
             // std::cout << ruamount0 << " " << ruamount1 << std::endl;
             // std::cout << amount0 << " " << amount1 << std::endl;
-
-            // std::cerr << "BURN RET: " << ruamount0.ToDouble() << " " << ruamount0_fuck << std::endl;
-            // std::cerr << "BURN RET: " << ruamount1.ToDouble() << " " << ruamount1_fuck << std::endl;
+            if(comparison(ruamount0.ToDouble(), ruamount0_fuck) < MAX_DEVIATION && comparison(ruamount1.ToDouble(), ruamount1_fuck) < MAX_DEVIATION); else {
+                std::cerr << "BURN RET: " << ruamount0.ToDouble() << " " << ruamount0_fuck << std::endl;
+                std::cerr << "BURN RET: " << ruamount1.ToDouble() << " " << ruamount1_fuck << std::endl;
+            }
             assert(ruamount0 == amount0 && ruamount1 == amount1);
             assert(dis(ruamount0, amount0) <= 100 && dis(ruamount1, amount1) < 100);
             assert(comparison(ruamount0.ToDouble(), ruamount0_fuck) < MAX_DEVIATION);
@@ -284,6 +287,17 @@ int main(int argc, char *argv[]) {
         // assert(t != 2239328);
         // SavePool(pool, "pool_state");
         // if(t == 2239330) break;
+
+
+        // if(t == 7268) {
+        //     std::cerr << "+++++++++++" << std::endl;
+        //     _Tick<false> * beginPtr = (&pool->ticks.temp) + 1;
+        //     _Tick<false> * endPtr   = beginPtr + pool->ticks.length;
+        //     for(_Tick<false> * it = beginPtr; it < endPtr; it++) {
+        //         std::cerr << it->id << " " << it->liquidityGross << " " << it->liquidityNet << std::endl;
+        //     }
+        //     std::cerr << "+++++++++++" << std::endl;
+        // }
     }
     std::cout << "\n\n" << std::endl;
     for (int i = 0; i < 4; ++i) {

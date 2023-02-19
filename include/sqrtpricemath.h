@@ -180,7 +180,7 @@ FloatType getAmount0Delta(
     FloatType sqrtRatioAX96,
     FloatType sqrtRatioBX96,
     FloatType liquidity,
-    int roundUp
+    bool roundUp
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
@@ -189,14 +189,12 @@ FloatType getAmount0Delta(
 
     require(sqrtRatioAX96 > 0, "QWQ");
 
-    if (roundUp == 1) {
+    if (roundUp) {
         return ceil((numerator1 * numerator2 / sqrtRatioBX96) / sqrtRatioAX96);
-    } else if(roundUp == 0){
+    } else {
         // FloatType ret = (numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96;
         // FloatType ret_temp0 = floor(ret), ret_temp1 = floor(ret + 0.5);
-        return floor((numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96); //ret_temp0 == ret_temp1 ? ret_temp0 : ret;
-    } else {
-        return (numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96;
+        return floor((numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96) + 1e-2); //ret_temp0 == ret_temp1 ? ret_temp0 : ret;
     }
 }
 

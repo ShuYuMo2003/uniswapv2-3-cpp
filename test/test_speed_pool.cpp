@@ -9,7 +9,7 @@
 using namespace std;
 
 int UNI_DATA_SIZE = -1;
-const int TEST_TIME = 1e8;
+const int TEST_TIME = 3e6;
 
 int TOT_CNT = 0;
 double MAX_DIFF = -1, TOT_DIFF = 0;
@@ -115,7 +115,7 @@ int main(){
     cerr << "done generated data cnt = " << UNI_DATA_SIZE << endl;
 
 
-    // TestCertainPoint(pool, pool_float, int256("8310258772"), 0);
+    // TestCertainPoint(pool, pool_float, int256("94033269757636"), 1);
     // return 0;
 
     cerr << "run" << endl;
@@ -123,6 +123,7 @@ int main(){
     for(int i = 0; i < TEST_TIME; i++, uniq_id++) {
         if(uniq_id == UNI_DATA_SIZE) uniq_id = 0;
         result[uniq_id] = swap_handle(pool_float, tc[uniq_id].zeroToOne, tc[uniq_id].amount);
+        // raw_swap_handle(pool, tc[uniq_id].zeroToOne, tc[uniq_id].raw_amount);
     }
     timer = (clock() - timer) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
     timer /= TEST_TIME;
