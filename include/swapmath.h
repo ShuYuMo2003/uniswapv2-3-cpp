@@ -111,12 +111,13 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
     FloatType amountIn, amountOut, feeAmount;
 
     // std::cerr << "ARG: " << zeroForOne << " " << exactIn << std::endl;
-    // const int SPECIAL_MODE = 20031006;
+    const int RoundUpMode = 1;
+    const int RoundDownMode = 0;
     if (exactIn) {
         FloatType amountRemainingLessFee = ((1e6 - feePips) / 1e6) * amountRemaining;// * mulDiv(amountRemaining , 1e6 - feePips, 1e6);
         amountIn = zeroForOne
-            ? getAmount0Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, true)
-            : getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, true);
+            ? getAmount0Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundUpMode)
+            : getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundUpMode);
         if (amountRemainingLessFee >= amountIn) sqrtRatioNextX96 = sqrtRatioTargetX96;
         else
             sqrtRatioNextX96 = getNextSqrtPriceFromInput(
@@ -127,8 +128,8 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
             );
     } else {
         amountOut = zeroForOne
-            ? getAmount1Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, false)
-            : getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, false);
+            ? getAmount1Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundDownMode)
+            : getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundDownMode);
         if (-amountRemaining >= amountOut) sqrtRatioNextX96 = sqrtRatioTargetX96;
         else
             sqrtRatioNextX96 = getNextSqrtPriceFromOutput(
@@ -145,17 +146,17 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
     if (zeroForOne) {
         amountIn = max && exactIn
             ? amountIn
-            : getAmount0Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, true);
+            : getAmount0Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
         amountOut = max && !exactIn
             ? amountOut
-            : getAmount1Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, false);
+            : getAmount1Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
     } else {
         amountIn = max && exactIn
             ? amountIn
-            : getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, true);
+            : getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundUpMode);
         amountOut = max && !exactIn
             ? amountOut
-            : getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, false);
+            : getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundDownMode);
     }
 
     // cap the output amount to not exceed the remaining output amount

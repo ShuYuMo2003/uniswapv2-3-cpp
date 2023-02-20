@@ -154,7 +154,7 @@ uint256 getAmount0Delta(
     uint160 sqrtRatioAX96,
     uint160 sqrtRatioBX96,
     uint128 liquidity,
-    bool roundUp
+    int roundUp
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
@@ -180,7 +180,7 @@ FloatType getAmount0Delta(
     FloatType sqrtRatioAX96,
     FloatType sqrtRatioBX96,
     FloatType liquidity,
-    bool roundUp
+    int roundUp
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
@@ -189,12 +189,14 @@ FloatType getAmount0Delta(
 
     require(sqrtRatioAX96 > 0, "QWQ");
 
-    if (roundUp) {
+    if (roundUp == 1) {
         return ceil((numerator1 * numerator2 / sqrtRatioBX96) / sqrtRatioAX96);
-    } else {
+    } else if(roundUp == 0) {
         // FloatType ret = (numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96;
         // FloatType ret_temp0 = floor(ret), ret_temp1 = floor(ret + 0.5);
         return floor((numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96) + 1e-2); //ret_temp0 == ret_temp1 ? ret_temp0 : ret;
+    } else {
+        return (numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96);
     }
 }
 
@@ -209,7 +211,7 @@ uint256 getAmount1Delta(
     uint160 sqrtRatioAX96,
     uint160 sqrtRatioBX96,
     uint128 liquidity,
-    bool roundUp
+    int roundUp
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
