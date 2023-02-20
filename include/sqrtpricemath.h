@@ -59,26 +59,39 @@ FloatType getNextSqrtPriceFromAmount0RoundingUp(
 ) {
     // we short circuit amount == 0 because the result is otherwise not guaranteed to equal the input price
     if (fabs(amount) < EPS) return sqrtPX96;
-    FloatType numerator1 = liquidity;
+    // FloatType numerator1 = liquidity;
 
     if (add) {
-        FloatType product;
-        if (fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS) {
-            // puts("CASE 0");
-            FloatType denominator = numerator1 + product;
-            if (denominator >= numerator1)
-                // always fits in 160 bits
-                return (numerator1 * sqrtPX96 / denominator);
-        }
+        // FloatType product;
+        // if (fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS) {
+        //     // puts("CASE 0");
+        //     FloatType denominator = numerator1 + product;
+        //     if (denominator >= numerator1)
+        //         // always fits in 160 bits
+        //         return (numerator1 * sqrtPX96 / denominator);
+        // }
 
-        return numerator1 / (numerator1 / sqrtPX96 + amount);
+
+        // These two statement below is equivalent in mathmatical notion.
+        // TODO: test and choose better one.
+        return liquidity / (liquidity / sqrtPX96 + amount);
+        // return (liquidity * sqrtPX96) / (liquidity + amount * sqrtPX96);
     } else {
-        FloatType product;
-        // if the product overflows, we know the denominator underflows
-        // in addition, we must check that the denominator does not underflow
-        require(fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS && numerator1 > product, "POO");
-        FloatType denominator = numerator1 - product;
-        return (numerator1 * sqrtPX96 / denominator);
+        // FloatType product;
+        // // if the product overflows, we know the denominator underflows
+        // // in addition, we must check that the denominator does not underflow
+        // require(fabs((product = amount * sqrtPX96) / amount - sqrtPX96) < EPS && numerator1 > product, "POO");
+        // FloatType denominator = numerator1 - product;
+        // return (numerator1 * sqrtPX96 / denominator);
+
+
+        // These two statement below is equivalent in mathmatical notion.
+        // TODO: test and choose better one.
+        FloatType result;
+        result = liquidity / (liquidity / sqrtPX96 - amount);
+        // result = (liquidity * sqrtPX96) / (liquidity - amount * sqrtPX96);
+        require(result > -EPS, "QAQ");
+        return result;
     }
 }
 
@@ -130,15 +143,13 @@ FloatType getNextSqrtPriceFromAmount1RoundingDown(
     // if we're adding (subtracting), rounding down requires rounding the quotient down (up)
     // in both cases, avoid a mulDiv for most inputs
     if (add) {
-        FloatType quotient = amount / liquidity;
-
-        return sqrtPX96 + quotient;
+        return sqrtPX96 + amount / liquidity;
     } else {
-        FloatType quotient = amount / liquidity;
+        FloatType result = sqrtPX96 - amount / liquidity;
 
-        require(sqrtPX96 > quotient, "QAQ");
+        require(result > -EPS, "QAQ");
         // always fits 160 bits
-        return sqrtPX96 - quotient;
+        return result;
     }
 }
 
@@ -188,15 +199,10 @@ FloatType getAmount0Delta(
     FloatType numerator2 = sqrtRatioBX96 - sqrtRatioAX96;
 
     require(sqrtRatioAX96 > 0, "QWQ");
-
-    if (roundUp == 1) {
-        return ceil((numerator1 * numerator2 / sqrtRatioBX96) / sqrtRatioAX96);
-    } else if(roundUp == 0) {
-        // FloatType ret = (numerator1 * numerator2) / sqrtRatioBX96 / sqrtRatioAX96;
-        // FloatType ret_temp0 = floor(ret), ret_temp1 = floor(ret + 0.5);
-        return floor((numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96) + 1e-2); //ret_temp0 == ret_temp1 ? ret_temp0 : ret;
-    } else {
-        return (numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96);
+    switch(roundUp) {
+        case 2: return (numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96);
+        case 0: return floor((numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96) + 1e-2);
+        case 1: return ceil((numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96));
     }
 }
 
@@ -232,13 +238,10 @@ FloatType getAmount1Delta(
 
     if(fabs(sqrtRatioAX96 - sqrtRatioBX96) < 1e-11)
         sqrtRatioAX96 = sqrtRatioBX96;
-
-    if (roundUp == 1) {
-        return ceil(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
-    } else if(roundUp == 0) {
-        return floor(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
-    } else {
-        return liquidity * (sqrtRatioBX96 - sqrtRatioAX96);
+    switch(roundUp) {
+        case 2: return liquidity * (sqrtRatioBX96 - sqrtRatioAX96);
+        case 0: return floor(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
+        case 1: return ceil(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
     }
 }
 

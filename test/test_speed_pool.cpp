@@ -9,7 +9,7 @@
 using namespace std;
 
 int UNI_DATA_SIZE = -1;
-const int TEST_TIME = 3e6;
+const int TEST_TIME = 1e4;
 
 int TOT_CNT = 0;
 double MAX_DIFF = -1, TOT_DIFF = 0;
@@ -33,6 +33,8 @@ struct testcase{
     int256 raw_amount;
     double amount;
     std::pair<double, double> result;
+    double dev;
+    int repeat;
 };
 vector<testcase> tc;
 vector<pair<double, double>> result;
@@ -85,6 +87,35 @@ WETH    (0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2) (1): 6530822335762893455121
 USD Coin(0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48) (0): 94033269757636
 */
 
+tuple<std::string, std::string, std::string, std::string> split(double a, double b) {
+    static char buffer0[50], buffer1[50];
+    sprintf(buffer0, "%.1lf", a);
+    sprintf(buffer1, "%.1lf", b);
+    std::string a0 = "", a1 = "", b0 = "", b1 = "";
+    std::string raw0 = buffer0;
+    std::string raw1 = buffer1;
+    bool splitit = false;
+    int len = std::min(raw0.size(), raw1.size());
+    for(int i = 0; i < len; i++) {
+        if(raw0[i] == raw1[i] && !splitit) a0.push_back(raw0[i]), b0.push_back(raw1[i]);
+        else {
+            splitit = true;
+            a1.push_back(raw0[i]);
+            b1.push_back(raw1[i]);
+        }
+    }
+    while(len < raw0.size()) a1.push_back(raw0[len++]);
+    while(len < raw1.size()) b1.push_back(raw1[len++]);
+    return make_tuple(a0, a1, b0, b1);
+}
+
+std::string whitespace(int n) {
+    std::string ret = "";
+    if(n < 0) return ret;
+    while(n--)ret.push_back(' ');
+    return ret;
+}
+
 void TestCertainPoint(Pool<false> * pool0, Pool<true> * pool1, int256 amount, bool zeroToOne){
     static uint160 SQPRL = uint160("4295128740");
     static uint160 SQPRR = uint160("1461446703485210103287273052203988822378723970341");
@@ -101,8 +132,10 @@ int main(){
     initializeTicksPrice();
     cerr << "Generating data." << endl;
 
-    Pool<false> *pool       = (Pool<false> *)malloc(100 * 1024);
-    Pool<true>  *pool_float = (Pool<true>  *)malloc(100 * 1024);
+    register unsigned char MEMPOOL0[256 * 1024];
+    register unsigned char MEMPOOL1[256 * 1024];
+    Pool<false> *pool       = (Pool<false> *)MEMPOOL0;
+    Pool<true>  *pool_float = (Pool<true>  *)MEMPOOL1;
 
     LoadPool(pool, "pool_state");
     GenerateFloatPool(pool, pool_float);
@@ -119,14 +152,15 @@ int main(){
     // return 0;
 
     cerr << "run" << endl;
-    double timer = clock(); int uniq_id = 0;
-    for(int i = 0; i < TEST_TIME; i++, uniq_id++) {
-        if(uniq_id == UNI_DATA_SIZE) uniq_id = 0;
-        result[uniq_id] = swap_handle(pool_float, tc[uniq_id].zeroToOne, tc[uniq_id].amount);
-        // raw_swap_handle(pool, tc[uniq_id].zeroToOne, tc[uniq_id].raw_amount);
+    double timer[UNI_DATA_SIZE];
+    for(int t = 0; t < UNI_DATA_SIZE; t++) {
+        timer[t] = clock();
+        for(int i = 0; i < TEST_TIME; i++) {
+            result[t] = swap_handle(pool_float, tc[t].zeroToOne, tc[t].amount);
+        }
+        timer[t] = (clock() - timer[t]) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
+        timer[t] /= TEST_TIME;
     }
-    timer = (clock() - timer) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
-    timer /= TEST_TIME;
     cerr << "run done" << endl;
 
     for(int i = 0; i < UNI_DATA_SIZE; i++) {
@@ -139,11 +173,15 @@ int main(){
 
         diffe = max(fabs(  (ret1.second - ret0.second) / std::max(fabs(ret0.second), fabs(ret1.second))  ),
                 fabs(  (ret1.first - ret0.first) / std::max(fabs(ret0.first), fabs(ret1.first))  ));
-        cerr << "diffe = " << diffe << " " << tc[i].zeroToOne << " "; cout << amountSpecified << " ";
-        cout << "\t" << ret1.first << " " << ret0.first << " \t| " << ret1.second << " " << ret0.second << endl;
+        // cerr << "diffe = " << diffe << " " << tc[i].zeroToOne << " "; cout << amountSpecified << " ";
+        // cout << "\t" << ret1.first << " " << ret0.first << " \t| " << ret1.second << " " << ret0.second << endl;
 
         MAX_DIFF = std::max(MAX_DIFF, diffe);
-        TOT_DIFF += diffe; TOT_CNT ++;
+        if(diffe < 0.9){
+
+            TOT_DIFF += diffe; TOT_CNT ++;
+        }
+        tc[i].dev = diffe;
         // if(diffe < 0.000001 || (ret1.first > -100000 && ret1.first < 100000) || (ret1.second > -100000 && ret1.second < 100000)) ; else {
         //     static char buffer[1000];
         //     sprintf(buffer, "\n\n================================================= FAIL ============================================\n"
@@ -152,11 +190,19 @@ int main(){
         //     std::cerr << buffer << std::endl;
         // }
     }
-
-    printf("Time used        = %.5lf ns\n", timer);
+    // printf("======================== Timer ==========================\n");
+    printf("D |                 AmountIn |Time(ns)| Deviation  |        Standard AmountOut | fuck AmountOut\n");
+    for(int t = 0; t < UNI_DATA_SIZE; t++) {
+        std::string a0, a1, b0, b1;
+        if(!tc[t].zeroToOne)
+            std::tie(a0, a1, b0, b1) = split(tc[t].result.first, result[t].first);
+        else
+            std::tie(a0, a1, b0, b1) = split(tc[t].result.second, result[t].second);
+        printf("%d | % 24.0lf | % 6.0lf | %.8lf | %s%s\033[41;30m%s\033[0m | %s\033[41;30m%s\033[0m \n", tc[t].zeroToOne, tc[t].amount, timer[t], tc[t].dev, whitespace(25 - (a0.size() + a1.size())).c_str(), a0.c_str(), a1.c_str(), b0.c_str(), b1.c_str());
+    }
+    //printf("======================== Timer ==========================\n");
     printf("Maximum mistake  = %.30lf\n", MAX_DIFF);
-    printf("Average mistake  = %.30f\n", TOT_DIFF / TOT_CNT);
-    free(pool);
-    free(pool_float);
+    // printf("Average mistake  = %.30f\n", TOT_DIFF / TOT_CNT);
+
     return 0;
 }

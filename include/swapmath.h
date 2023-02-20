@@ -104,20 +104,21 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
 ) {
     // std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
 
-    bool zeroForOne = sqrtRatioCurrentX96 > sqrtRatioTargetX96 || (fabs(sqrtRatioCurrentX96 - sqrtRatioTargetX96) < EPS);
-    bool exactIn = amountRemaining > 0 || (fabs(amountRemaining) < EPS);
+    register bool zeroForOne = sqrtRatioCurrentX96 - sqrtRatioTargetX96 >= -EPS;
+    register bool exactIn = amountRemaining >= -EPS;
 
-    FloatType sqrtRatioNextX96;
-    FloatType amountIn, amountOut, feeAmount;
+    register FloatType sqrtRatioNextX96;
+    register FloatType amountIn, amountOut, feeAmount;
 
     // std::cerr << "ARG: " << zeroForOne << " " << exactIn << std::endl;
-    const int RoundUpMode = 1;
-    const int RoundDownMode = 0;
+    const int RoundUpMode = 2;
+    const int RoundDownMode = 2;
     if (exactIn) {
         FloatType amountRemainingLessFee = ((1e6 - feePips) / 1e6) * amountRemaining;// * mulDiv(amountRemaining , 1e6 - feePips, 1e6);
-        amountIn = zeroForOne
-            ? getAmount0Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundUpMode)
-            : getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundUpMode);
+        if(zeroForOne)
+            amountIn = getAmount0Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
+        else
+            amountIn = getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundUpMode);
         if (amountRemainingLessFee >= amountIn) sqrtRatioNextX96 = sqrtRatioTargetX96;
         else
             sqrtRatioNextX96 = getNextSqrtPriceFromInput(
@@ -127,9 +128,10 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
                 zeroForOne
             );
     } else {
-        amountOut = zeroForOne
-            ? getAmount1Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundDownMode)
-            : getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundDownMode);
+        if(zeroForOne)
+            amountOut = getAmount1Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
+        else
+            amountOut = getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundDownMode);
         if (-amountRemaining >= amountOut) sqrtRatioNextX96 = sqrtRatioTargetX96;
         else
             sqrtRatioNextX96 = getNextSqrtPriceFromOutput(
@@ -140,23 +142,28 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
             );
     }
 
-    bool max = fabs(sqrtRatioTargetX96 - sqrtRatioNextX96) < EPS;
 
     // get the input/output amounts
-    if (zeroForOne) {
-        amountIn = max && exactIn
-            ? amountIn
-            : getAmount0Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
-        amountOut = max && !exactIn
-            ? amountOut
-            : getAmount1Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
+    if(fabs(sqrtRatioTargetX96 - sqrtRatioNextX96) > EPS) {
+        if (zeroForOne) {
+            amountIn = getAmount0Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
+            amountOut = getAmount1Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
+        } else {
+            amountIn = getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundUpMode);
+            amountOut = getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundDownMode);
+        }
     } else {
-        amountIn = max && exactIn
-            ? amountIn
-            : getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundUpMode);
-        amountOut = max && !exactIn
-            ? amountOut
-            : getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundDownMode);
+        if (zeroForOne) {
+            if(exactIn)
+                amountOut = getAmount1Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
+            else
+                amountIn = getAmount0Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
+        } else {
+            if(exactIn)
+                amountOut = getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundDownMode);
+            else
+                amountIn = getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundUpMode);
+        }
     }
 
     // cap the output amount to not exceed the remaining output amount
