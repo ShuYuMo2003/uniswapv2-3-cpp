@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <cstdio>
 #include <ctime>
@@ -9,7 +10,7 @@
 using namespace std;
 
 int UNI_DATA_SIZE = -1;
-const int TEST_TIME = 1e4;
+const int TEST_TIME = 3e4;
 
 int TOT_CNT = 0;
 double MAX_DIFF = -1, TOT_DIFF = 0;

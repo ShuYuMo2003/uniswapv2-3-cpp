@@ -2,11 +2,24 @@
 #define headerfiletypes
 
 #include <string>
+#include <iostream>
 
 #include "../lib/ttmath/ttmathint.h"
 #include "../lib/ttmath/ttmathuint.h"
 
-#define FloatType double
+#define FloatType long double
+
+// std::istream& operator>>(std::istream& is, __float128 & x) {
+//     double t;
+//     is>>t;
+//     x = t;
+//     return is;
+// }
+// std::ostream& operator<<(std::ostream& os, const __float128 & x) {
+//     double t = x;
+//     os << x;
+//     return os;
+// }
 
 typedef unsigned int uint;
 typedef uint uint8;

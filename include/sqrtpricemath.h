@@ -51,7 +51,7 @@ uint160 getNextSqrtPriceFromAmount0RoundingUp(
     }
 }
 
-FloatType getNextSqrtPriceFromAmount0RoundingUp(
+__attribute__((always_inline)) FloatType getNextSqrtPriceFromAmount0RoundingUp(
     FloatType sqrtPX96,
     FloatType liquidity,
     FloatType amount,
@@ -134,7 +134,7 @@ uint160 getNextSqrtPriceFromAmount1RoundingDown(
     }
 }
 
-FloatType getNextSqrtPriceFromAmount1RoundingDown(
+__attribute__((always_inline)) FloatType getNextSqrtPriceFromAmount1RoundingDown(
     FloatType sqrtPX96,
     FloatType liquidity,
     FloatType amount,
@@ -187,7 +187,7 @@ uint256 getAmount0Delta(
     }
 }
 
-FloatType getAmount0Delta(
+__attribute__((always_inline)) FloatType getAmount0Delta(
     FloatType sqrtRatioAX96,
     FloatType sqrtRatioBX96,
     FloatType liquidity,
@@ -228,7 +228,7 @@ uint256 getAmount1Delta(
     }
 }
 
-FloatType getAmount1Delta(
+__attribute__((always_inline)) FloatType getAmount1Delta(
     FloatType sqrtRatioAX96,
     FloatType sqrtRatioBX96,
     FloatType liquidity,
@@ -285,7 +285,7 @@ int256 getAmount1Delta(
             : getAmount1Delta(sqrtRatioAX96, sqrtRatioBX96, uint128(liquidity), true);
 }
 
-FloatType getAmount1Delta(
+__attribute__((always_inline)) FloatType getAmount1Delta(
     FloatType sqrtRatioAX96,
     FloatType sqrtRatioBX96,
     FloatType liquidity
@@ -326,7 +326,7 @@ uint160 getNextSqrtPriceFromInput(
             : getNextSqrtPriceFromAmount1RoundingDown(sqrtPX96, liquidity, amountIn, true);
 }
 
-FloatType getNextSqrtPriceFromInput(
+__attribute__((always_inline)) FloatType getNextSqrtPriceFromInput(
     FloatType sqrtPX96,
     FloatType liquidity,
     FloatType amountIn,

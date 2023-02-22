@@ -3102,8 +3102,40 @@ public:
 	}
 
 	// warning: do not support 32bit machine
-	double ToDouble() const {
-		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
+	long double ToDouble() const {
+		// according to IEEE754,               64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
+		// according to x86 extended precision format: 1(Sign) - 15(Exponent) - 64(Mantissa)(without utilizing implicit/hidden bit)
+		unsigned long long mantissa = 0, exponent = 0;
+		uint table_id, index;
+		if(not FindLeadingBit(table_id, index)) return 0;
+
+		exponent = index + table_id * TTMATH_BITS_PER_UINT + 16383u;
+
+		for(uint i = 0; i <= table_id; i++) {
+			uint width; unsigned long long bits;
+			mantissa &= ((1ull << 63) - 1ull);
+			if(i == table_id) {
+				width = index;
+				bits = table[i] & ((1ull << width) - 1ull);
+			} else {
+				width = TTMATH_BITS_PER_UINT;
+				bits = table[i];
+			}
+			if(width > 63) {
+				bits >>= (width - 63);
+				mantissa = bits;
+			} else {
+				mantissa >>= width;
+				mantissa |= (bits << (63 - width));
+			}
+		}
+		mantissa = (mantissa & ((1ull << 63) - 1ull)) | (1ull << 63);
+		unsigned long long result[2] = {0};
+		result[0] = mantissa;
+		result[1] = exponent;
+		return *(long double*)result;
+
+		/* for 64bits only below.
 		unsigned long long mantissa = 0, exponent = 0;
 		uint table_id, index;
 		if(not FindLeadingBit(table_id, index)) return 0;
@@ -3131,12 +3163,24 @@ public:
 		unsigned long long result = 0;
 		result = (exponent << 52) | (mantissa & ((1ull << 52) - 1ull));
 		return *(double*)(&result);
+		*/
 	}
 
-	double X96ToDouble() const {
+	long double X96ToDouble() const {
 		assert(value_size == 5); // For `uint160` only.
 
-		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
+		// according to IEEE754,               64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
+		// according to x86 extended precision format: 1(Sign) - 15(Exponent) - 64(Mantissa)(without utilizing implicit/hidden bit)
+		long double tmp = ToDouble();
+		if((tmp) < 1e-7 && (-tmp) < 1e-7) return 0;
+		unsigned long long * pre_value = (unsigned long long *)(&tmp);
+
+
+		pre_value[1] -= 96;
+
+		return *(long double*)(pre_value);
+
+		/* for 64bits only below.
 		double pre_value = ToDouble();
 		if((pre_value) < 1e-7 && (-pre_value) < 1e-7) return 0;
 
@@ -3146,7 +3190,8 @@ public:
 		value &= ( ~(((1ull << 11) - 1) << 52) );
 		value |= (exponent << 52);
 
-		return *(double*)(&value);
+		return *(long double*)(&value);
+		*/
 	}
 
 	// operator double() const { return ToDouble(); }

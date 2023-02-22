@@ -5,10 +5,11 @@
 
 
 int main(){
-    uint160 aim("0");
+    uint160 aim("1145141919810200310030597");
+    /////////////1145141919810200309989376.0000000000
 
 
 
-    printf("%.10lf\n", aim.ToDouble());
-    // printf("%.50lf\n", aim.X96ToDouble());
+    printf("%.10Lf\n", aim.ToDouble());
+    printf("%.50Lf\n", aim.X96ToDouble());
 }

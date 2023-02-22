@@ -1130,10 +1130,10 @@ public:
 	{
 	}
 
-	double ToDouble() const {
+	long double ToDouble() const {
 		uint sign = IsSign();
 		Int<value_size> temp(*this); temp.Abs();
-		double ret = temp.UInt<value_size>::ToDouble();
+		long double ret = temp.UInt<value_size>::ToDouble();
 		return sign ? (-ret) : ret;
 	}
 

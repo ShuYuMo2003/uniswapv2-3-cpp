@@ -78,7 +78,7 @@ T getSqrtRatioAtTick(int24 tick) {
 }
 
 template<>
-FloatType getSqrtRatioAtTick<FloatType>(int24 tick) {
+__attribute__((always_inline)) FloatType getSqrtRatioAtTick<FloatType>(int24 tick) {
     require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
     require(MIN_TICK <= tick && tick <= MAX_TICK, "TICK0");
     return getSqrtRatioAtTickMemory_float[tick + shift];

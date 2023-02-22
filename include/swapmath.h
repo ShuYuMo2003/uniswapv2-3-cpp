@@ -95,7 +95,7 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
 }
 
 
-std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
+__attribute__((always_inline)) std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
     const FloatType & sqrtRatioCurrentX96,
     const FloatType & sqrtRatioTargetX96,
     const FloatType & liquidity,
@@ -111,8 +111,8 @@ std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
     register FloatType amountIn, amountOut, feeAmount;
 
     // std::cerr << "ARG: " << zeroForOne << " " << exactIn << std::endl;
-    const int RoundUpMode = 2;
-    const int RoundDownMode = 2;
+    const int RoundUpMode = 1;
+    const int RoundDownMode = 0;
     if (exactIn) {
         FloatType amountRemainingLessFee = ((1e6 - feePips) / 1e6) * amountRemaining;// * mulDiv(amountRemaining , 1e6 - feePips, 1e6);
         if(zeroForOne)
