@@ -3102,14 +3102,50 @@ public:
 	}
 
 	// warning: do not support 32bit machine
-	long double ToDouble() const {
-		// according to IEEE754,               64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
+	long double ToDouble(int delta = 0) const {
+		/*
+		// according to IEEE754  (binary128): 1(Sign) - 15(Exponent) - 112(Mantissa)
+		unsigned long long mantissa[2] = {0}, exponent = 0;
+		uint table_id, index;
+		if(not FindLeadingBit(table_id, index)) return 0;
+
+		exponent = index + table_id * TTMATH_BITS_PER_UINT + 16383u + delta;
+
+		// 48 + 64 = 112.
+
+		for(uint i = 0; i <= table_id; i++) {
+			uint width; unsigned long long bits;
+			mantissa[1] &= (1ull << 48) - 1;
+			if(i == table_id) {
+				width = index;
+				bits = table[i] & ((1ull << width) - 1ull);
+			} else {
+				width = TTMATH_BITS_PER_UINT;
+				bits = table[i];
+			}
+			mantissa[0] >>= width;
+			mantissa[0] |= mantissa[1] << (64 - width);
+			mantissa[1] >>= width;
+
+			if(width > 48) {
+				mantissa[1] = bits >> (width - 48);
+				mantissa[0] |= bits << (64 - (width - 48));
+			} else {
+				mantissa[1] |= bits << (48 - width);
+			}
+		}
+		mantissa[1] |= exponent << 48;
+		return *(__float128*)(mantissa);
+		*/
+
+
+
 		// according to x86 extended precision format: 1(Sign) - 15(Exponent) - 64(Mantissa)(without utilizing implicit/hidden bit)
 		unsigned long long mantissa = 0, exponent = 0;
 		uint table_id, index;
 		if(not FindLeadingBit(table_id, index)) return 0;
 
-		exponent = index + table_id * TTMATH_BITS_PER_UINT + 16383u;
+		exponent = index + table_id * TTMATH_BITS_PER_UINT + 16383u + delta;
 
 		for(uint i = 0; i <= table_id; i++) {
 			uint width; unsigned long long bits;
@@ -3136,11 +3172,12 @@ public:
 		return *(long double*)result;
 
 		/* for 64bits only below.
+		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
 		unsigned long long mantissa = 0, exponent = 0;
 		uint table_id, index;
 		if(not FindLeadingBit(table_id, index)) return 0;
 
-		exponent = index + table_id * TTMATH_BITS_PER_UINT + 1023;
+		exponent = index + table_id * TTMATH_BITS_PER_UINT + 1023 + delta;
 
 		for(uint i = 0; i <= table_id; i++) {
 			uint width; unsigned long long bits;
@@ -3169,7 +3206,10 @@ public:
 	long double X96ToDouble() const {
 		assert(value_size == 5); // For `uint160` only.
 
-		// according to IEEE754,               64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
+		return ToDouble(-96);
+
+
+		/*
 		// according to x86 extended precision format: 1(Sign) - 15(Exponent) - 64(Mantissa)(without utilizing implicit/hidden bit)
 		long double tmp = ToDouble();
 		if((tmp) < 1e-7 && (-tmp) < 1e-7) return 0;
@@ -3179,8 +3219,11 @@ public:
 		pre_value[1] -= 96;
 
 		return *(long double*)(pre_value);
+		*/
+
 
 		/* for 64bits only below.
+		 // according to IEEE754,               64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
 		double pre_value = ToDouble();
 		if((pre_value) < 1e-7 && (-pre_value) < 1e-7) return 0;
 
