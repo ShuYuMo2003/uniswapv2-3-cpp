@@ -7,7 +7,7 @@
 #include "../lib/ttmath/ttmathint.h"
 #include "../lib/ttmath/ttmathuint.h"
 
-#define FloatType long double
+#define FloatType double
 
 // std::istream& operator>>(std::istream& is, __float128 & x) {
 //     double t;

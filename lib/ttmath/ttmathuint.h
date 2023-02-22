@@ -3102,7 +3102,7 @@ public:
 	}
 
 	// warning: do not support 32bit machine
-	long double ToDouble(int delta = 0) const {
+	double ToDouble(int delta = 0) const {
 		/*
 		// according to IEEE754  (binary128): 1(Sign) - 15(Exponent) - 112(Mantissa)
 		unsigned long long mantissa[2] = {0}, exponent = 0;
@@ -3139,7 +3139,7 @@ public:
 		*/
 
 
-
+		/*
 		// according to x86 extended precision format: 1(Sign) - 15(Exponent) - 64(Mantissa)(without utilizing implicit/hidden bit)
 		unsigned long long mantissa = 0, exponent = 0;
 		uint table_id, index;
@@ -3170,8 +3170,9 @@ public:
 		result[0] = mantissa;
 		result[1] = exponent;
 		return *(long double*)result;
+		*/
 
-		/* for 64bits only below.
+		// for 64bits only below.
 		// according to IEEE754, 64bits: 1(Sign) - 11(Exponent) - 52(Mantissa)
 		unsigned long long mantissa = 0, exponent = 0;
 		uint table_id, index;
@@ -3200,10 +3201,10 @@ public:
 		unsigned long long result = 0;
 		result = (exponent << 52) | (mantissa & ((1ull << 52) - 1ull));
 		return *(double*)(&result);
-		*/
+
 	}
 
-	long double X96ToDouble() const {
+	double X96ToDouble() const {
 		assert(value_size == 5); // For `uint160` only.
 
 		return ToDouble(-96);

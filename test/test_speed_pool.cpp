@@ -4,8 +4,10 @@
 #include <ctime>
 #include <cstring>
 #include <cstdlib>
+#include <fstream>
 #include "../include/types.h"
 #include "../include/pool.h"
+#include "../include/regression.h"
 
 using namespace std;
 
@@ -13,10 +15,10 @@ int UNI_DATA_SIZE = -1;
 const int TEST_TIME = 3e4;
 
 int TOT_CNT = 0;
-long double MAX_DIFF = -1, TOT_DIFF = 0;
+double MAX_DIFF = -1, TOT_DIFF = 0;
 
 
-std::pair<FloatType, FloatType> swap_handle(Pool<true> * pool, bool zeroToOne, long double amountIn) {
+std::pair<FloatType, FloatType> swap_handle(Pool<true> * pool, bool zeroToOne, double amountIn) {
     static FloatType SQPRL = uint160("4295128740").X96ToDouble();
     static FloatType SQPRR = uint160("1461446703485210103287273052203988822378723970341").X96ToDouble();
     return swap(pool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false);
@@ -34,6 +36,7 @@ struct testcase{
     int256 raw_amount;
     FloatType amount;
     std::pair<FloatType, FloatType> result;
+    std::pair<int256, int256> raw_result;
     FloatType dev;
     int repeat;
 };
@@ -41,22 +44,24 @@ vector<testcase> tc;
 vector<pair<FloatType, FloatType>> result;
 
 void generateFromExpon(Pool<false> * pool) {
-    for(uint160 amount = 10; amount < uint160("94033269757636"); (amount *= 14) /= 10) {
+    for(uint160 amount = 10; amount < uint160("94033269757636"); (amount *= 11) /= 10) {
         testcase now;
         now.zeroToOne  =  1;
         now.raw_amount =  amount;
         now.amount     =  now.raw_amount.ToDouble();
         std::pair<int256, int256> ret = raw_swap_handle(pool, now.zeroToOne, now.raw_amount);
+        now.raw_result = ret;
         now.result     = make_pair(ret.first.ToDouble(), ret.second.ToDouble());
         tc.push_back(now);
         // cout << amount << endl;
     }
-    for(uint160 amount = 10; amount < uint160("65308223357628934551218"); (amount *= 14) /= 10) {
+    for(uint160 amount = 10; amount < uint160("65308223357628934551218"); (amount *= 11) /= 10) {
         testcase now;
         now.zeroToOne  =  0;
         now.raw_amount =  amount;
         now.amount     =  now.raw_amount.ToDouble();
         std::pair<int256, int256> ret = raw_swap_handle(pool, now.zeroToOne, now.raw_amount);
+        now.raw_result = ret;
         now.result     = make_pair(ret.first.ToDouble(), ret.second.ToDouble());
         tc.push_back(now);
         // cout << amount << endl;
@@ -88,10 +93,10 @@ WETH    (0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2) (1): 6530822335762893455121
 USD Coin(0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48) (0): 94033269757636
 */
 
-tuple<std::string, std::string, std::string, std::string> split(long double a, long double b) {
+tuple<std::string, std::string, std::string, std::string> split(double a, double b) {
     static char buffer0[50], buffer1[50];
-    sprintf(buffer0, "%.1Lf", a);
-    sprintf(buffer1, "%.1Lf", b);
+    sprintf(buffer0, "%.1lf", a);
+    sprintf(buffer1, "%.1lf", b);
     std::string a0 = "", a1 = "", b0 = "", b1 = "";
     std::string raw0 = buffer0;
     std::string raw1 = buffer1;
@@ -127,7 +132,7 @@ void TestCertainPoint(Pool<false> * pool0, Pool<true> * pool1, int256 amount, bo
 }
 
 int main(){
-    std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(7);
+    std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(20);
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(1);
     cerr << "Initializing tick." << endl;
     initializeTicksPrice();
@@ -145,6 +150,25 @@ int main(){
     generateFromExpon(pool);
     // generateFromEvent(pool);
 
+    // std::ofstream sample("sample.txt");
+
+    int256 UpperAmount("4000");
+    vector<pair<int256, int256>> sample;
+    int returePointCnt = 0;
+    for(int i = 0; tc[i].raw_amount < UpperAmount; i++) {
+        // sample << tc[i].raw_amount << " " << tc[i].raw_result.second << std::endl;
+        if(i % 10 == 0) {
+            returePointCnt++;
+            sample.push_back(make_pair(tc[i].raw_amount, tc[i].raw_result.second));
+        }
+
+    }
+    auto[r, reg] = BuildRegression(sample);
+    cerr << "r = " << r << endl;
+    cerr << "returePointCnt = " << returePointCnt << endl;
+
+    cerr << "b = " << reg.b << " " << reg.a << endl;
+
 
     cerr << "done generated data cnt = " << UNI_DATA_SIZE << endl;
 
@@ -153,11 +177,19 @@ int main(){
     // return 0;
 
     cerr << "run" << endl;
-    long double timer[UNI_DATA_SIZE];
+    double timer[UNI_DATA_SIZE];
     for(int t = 0; t < UNI_DATA_SIZE; t++) {
-        timer[t] = clock();
-        for(int i = 0; i < TEST_TIME; i++) {
-            result[t] = swap_handle(pool_float, tc[t].zeroToOne, tc[t].amount);
+        timer[t] = clock(); // evaluate(reg, tc[t].raw_amount)
+        if(tc[t].zeroToOne && tc[t].raw_amount < UpperAmount) {
+            for(int i = 0; i < TEST_TIME; i++) {
+                result[t].second = evaluate(reg, tc[t].raw_amount);
+                result[t].first  = tc[t].result.first;
+            }
+
+        } else {
+            for(int i = 0; i < TEST_TIME; i++) {
+                result[t] = swap_handle(pool_float, tc[t].zeroToOne, tc[t].amount);
+            }
         }
         timer[t] = (clock() - timer[t]) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
         timer[t] /= TEST_TIME;
@@ -199,7 +231,7 @@ int main(){
             std::tie(a0, a1, b0, b1) = split(tc[t].result.first, result[t].first);
         else
             std::tie(a0, a1, b0, b1) = split(tc[t].result.second, result[t].second);
-        printf("%d | % 24.0Lf | % 6.0Lf | %.8Lf | %s%s\033[41;30m%s\033[0m | %s\033[41;30m%s\033[0m \n", tc[t].zeroToOne, tc[t].amount, timer[t], tc[t].dev, whitespace(25 - (a0.size() + a1.size())).c_str(), a0.c_str(), a1.c_str(), b0.c_str(), b1.c_str());
+        printf("%d | % 24.0lf | % 6.0lf | %.8lf | %s%s\033[41;30m%s\033[0m | %s\033[41;30m%s\033[0m \n", tc[t].zeroToOne, tc[t].amount, timer[t], tc[t].dev, whitespace(25 - (a0.size() + a1.size())).c_str(), a0.c_str(), a1.c_str(), b0.c_str(), b1.c_str());
     }
     //printf("======================== Timer ==========================\n");
     printf("Maximum mistake  = %.30Lf\n", MAX_DIFF);
