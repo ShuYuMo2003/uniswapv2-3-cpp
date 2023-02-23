@@ -150,24 +150,8 @@ int main(){
     generateFromExpon(pool);
     // generateFromEvent(pool);
 
-    // std::ofstream sample("sample.txt");
-
-    int256 UpperAmount("4000");
-    vector<pair<int256, int256>> sample;
-    int returePointCnt = 0;
-    for(int i = 0; tc[i].raw_amount < UpperAmount; i++) {
-        // sample << tc[i].raw_amount << " " << tc[i].raw_result.second << std::endl;
-        if(i % 10 == 0) {
-            returePointCnt++;
-            sample.push_back(make_pair(tc[i].raw_amount, tc[i].raw_result.second));
-        }
-
-    }
-    auto[r, reg] = BuildRegression(sample);
-    cerr << "r = " << r << endl;
-    cerr << "returePointCnt = " << returePointCnt << endl;
-
-    cerr << "b = " << reg.b << " " << reg.a << endl;
+    std::ofstream sample("sample.txt");
+    sample << std::setiosflags(std::ios::fixed) << std::setprecision(20);
 
 
     cerr << "done generated data cnt = " << UNI_DATA_SIZE << endl;
@@ -180,17 +164,11 @@ int main(){
     double timer[UNI_DATA_SIZE];
     for(int t = 0; t < UNI_DATA_SIZE; t++) {
         timer[t] = clock(); // evaluate(reg, tc[t].raw_amount)
-        if(tc[t].zeroToOne && tc[t].raw_amount < UpperAmount) {
-            for(int i = 0; i < TEST_TIME; i++) {
-                result[t].second = evaluate(reg, tc[t].raw_amount);
-                result[t].first  = tc[t].result.first;
-            }
 
-        } else {
-            for(int i = 0; i < TEST_TIME; i++) {
-                result[t] = swap_handle(pool_float, tc[t].zeroToOne, tc[t].amount);
-            }
+        for(int i = 0; i < TEST_TIME; i++) {
+            result[t] = swap_handle(pool_float, tc[t].zeroToOne, tc[t].amount);
         }
+
         timer[t] = (clock() - timer[t]) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
         timer[t] /= TEST_TIME;
     }
@@ -209,6 +187,7 @@ int main(){
         // cerr << "diffe = " << diffe << " " << tc[i].zeroToOne << " "; cout << amountSpecified << " ";
         // cout << "\t" << ret1.first << " " << ret0.first << " \t| " << ret1.second << " " << ret0.second << endl;
 
+        if(tc[i].zeroToOne) sample << tc[i].raw_amount << " " << diffe << std::endl;
         MAX_DIFF = std::max(MAX_DIFF, diffe);
         if(diffe < 0.9){
 

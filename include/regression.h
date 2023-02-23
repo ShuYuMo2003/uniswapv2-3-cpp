@@ -1,68 +1,35 @@
 #include <cmath>
-#include <cstdio>
-#include <algorithm>
-#include <vector>
-
-#define BT long double // __float128.
-#define ST long double
+#include "type.h"
+#include "consts.h"
 
 
 struct Regression_t{
-    BT a, b; // y = a + b * x;
+    FloatType upper;
+    long double a, b; // y = a + b * x;
 };
 
-std::pair<double, Regression_t> BuildRegression(const std::vector<std::pair<int256, int256>> & _sample) {
-    std::vector<std::pair<BT, BT>> sample;
-    sample.clear();
-    for(const auto & [x, y] : _sample) {
-        sample.push_back(std::make_pair(
-            (BT)x.ToDouble(),
-            (BT)y.ToDouble()
-        ));
+void BuildRegression(const int256 * samplex, const int256 * sampley, size_t n, Regression_t * result) {
+    static long double x[REGSAMAX], y[REGSAMAX];
+    long double avex = 0, avey = 0, sampleSize = n;
+    for(int i = 0; i < n; i++) {
+        avex += (x[i] = samplex[i].ToDouble());
+        avey += (y[i] = sampley[i].ToDouble());
     }
-    BT n = sample.size();
-    BT averagex = 0, averagey = 0;
-    for(auto & [x, y] : sample) {
-        averagex += x;
-        averagey += y;
-    }
-    averagex /= n;
-    averagey /= n;
+    avex /= sampleSize;
+    avey /= sampleSize;
 
-    BT Sqx = 0, Sqy = 0;
-
-    for(auto & [x, y] : sample) {
-        Sqx += (x - averagex) * (x - averagex);
-        Sqy += (y - averagey) * (y - averagey);
+    long double norminator = 0, dominator = 0;
+    for(int i = 0; i < n; i++) {
+        norminator += x[i] * y[i];
+        dominator  += x[i] * x[i];
     }
 
-    Sqx /= (n - 1); Sqx = sqrt(Sqx);
-
-    Sqy /= (n - 1); Sqy = sqrt(Sqy);
-
-    BT SM = 0;
-    for(auto & [x, y] : sample) {
-        SM += ((x - averagex) / Sqx) * ((y - averagey) / Sqy);
-    }
-    BT r = SM / (n - 1);
-
-    // BT dominator = 0, norminator = 0;
-    // for(auto & [x, y] : sample) {
-    //     norminator += x * y;
-    //     dominator += x * x;
-    // }
-    // norminator -= n * averagex * averagey;
-    // dominator -= n * (averagex * averagex);
-
-    Regression_t result;
-    result.b = r * (Sqy / Sqx);
-
-    result.a = averagey - result.b * averagex;
-
-    return std::make_pair(r, result);
+    norminator -= sampleSize * avex * avey;
+    dominator  -= sampleSize * avex * avex;
+    result->b = norminator / dominator;
+    result->a = avey - result->b * avex;
 }
 
-BT evaluate(const Regression_t & reg, const int256 & _x) {
-    BT x = _x.ToDouble();
-    return reg.a + reg.b * x;
+__attribute__((always_inline)) long double evaluate(const Regression_t * reg, const int256 & _x) {
+    return reg->a + reg->b * _x.ToDouble();
 }

@@ -569,8 +569,7 @@ typename std::conditional<enable_float, std::pair<FloatType, FloatType>, std::pa
     Pool<enable_float> * o,
     int24 tickLower,
     int24 tickUpper,
-    typename std::conditional<enable_float, FloatType, uint128>::type amount,
-    bytes32 data
+    typename std::conditional<enable_float, FloatType, uint128>::type amount
 ) {
     typedef typename std::conditional<enable_float, FloatType, int256>::type AmountType;
     typedef typename std::conditional<enable_float, FloatType, uint256>::type FinalAmountType;
