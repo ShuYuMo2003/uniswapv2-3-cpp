@@ -104,11 +104,11 @@ __attribute__((always_inline)) std::tuple<FloatType, FloatType, FloatType, Float
 ) {
     // std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
 
-    register bool zeroForOne = sqrtRatioCurrentX96 - sqrtRatioTargetX96 >= -EPS;
-    register bool exactIn = amountRemaining >= -EPS;
+    bool zeroForOne = sqrtRatioCurrentX96 - sqrtRatioTargetX96 >= -EPS;
+    bool exactIn = amountRemaining >= -EPS;
 
-    register FloatType sqrtRatioNextX96;
-    register FloatType amountIn, amountOut, feeAmount;
+    FloatType sqrtRatioNextX96;
+    FloatType amountIn, amountOut, feeAmount;
 
     // std::cerr << "ARG: " << zeroForOne << " " << exactIn << std::endl;
     const int RoundUpMode = 1;

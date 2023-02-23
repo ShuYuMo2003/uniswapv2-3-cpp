@@ -138,8 +138,8 @@ int main(){
     initializeTicksPrice();
     cerr << "Generating data." << endl;
 
-    register unsigned char MEMPOOL0[256 * 1024];
-    register unsigned char MEMPOOL1[256 * 1024];
+    unsigned char MEMPOOL0[256 * 1024];
+    unsigned char MEMPOOL1[256 * 1024];
     Pool<false> *pool       = (Pool<false> *)MEMPOOL0;
     Pool<true>  *pool_float = (Pool<true>  *)MEMPOOL1;
 
