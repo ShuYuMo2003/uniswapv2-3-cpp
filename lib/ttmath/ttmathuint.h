@@ -3205,7 +3205,11 @@ public:
 	}
 
 	double X96ToDouble() const {
+#if TTMATH_BITS_PER_UINT == 32
 		assert(value_size == 5); // For `uint160` only.
+#else
+		assert(value_size == 3); // For `uint160` only.
+#endif
 
 		return ToDouble(-96);
 

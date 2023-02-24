@@ -26,17 +26,31 @@ typedef uint uint8;
 typedef uint uint16;
 typedef uint uint24;
 typedef uint uint32;
-typedef ttmath::UInt<2>   uint64;
-typedef ttmath::UInt<4>   uint128;
-typedef ttmath::UInt<5>   uint160;
-typedef ttmath::UInt<8>   uint256;
-typedef ttmath::UInt<16>  uint512;
-typedef ttmath::UInt<32>  address;
 typedef int int16;
 typedef int int24;
-typedef ttmath::Int<2> int56;
-typedef ttmath::Int<4> int128;
-typedef ttmath::Int<8> int256;
+
+#if TTMATH_BITS_PER_UINT == 32
+    typedef ttmath::UInt<2>   uint64;
+    typedef ttmath::UInt<4>   uint128;
+    typedef ttmath::UInt<5>   uint160;
+    typedef ttmath::UInt<8>   uint256;
+    typedef ttmath::UInt<16>  uint512;
+    typedef ttmath::UInt<32>  address;
+    typedef ttmath::Int<2> int56;
+    typedef ttmath::Int<4> int128;
+    typedef ttmath::Int<8> int256;
+#else
+    typedef ttmath::UInt<1>   uint64;
+    typedef ttmath::UInt<2>   uint128;
+    typedef ttmath::UInt<3>   uint160;
+    typedef ttmath::UInt<4>   uint256;
+    typedef ttmath::UInt<8>  uint512;
+    typedef ttmath::UInt<16>  address;
+    typedef ttmath::Int<1> int56;
+    typedef ttmath::Int<2> int128;
+    typedef ttmath::Int<4> int256;
+#endif
+
 
 typedef std::string bytes32;
 
