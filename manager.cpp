@@ -58,7 +58,7 @@ struct V3Pool{
     Pool<true>  * FloatPool;
     size_t FloatPoolSize;
 
-    std::vector<Regression_t> reg;
+    std::vector<Lagrange> poly;
 
     std::vector<std::pair<unsigned int, double> > sampleTick;
 
@@ -69,17 +69,17 @@ struct V3Pool{
         free(o);
     }
     void InitSampleTick(){
-        const int TickCnt = 25;
-        const double RangeL = 1;
-        const double RangeR = 3;
+        const int TickCnt = 26;
+        const double RangeL = -3.9;
+        const double RangeR = 0.9;
 
-        const int MinAmount = 50;
-        const int MaxAmount = 1e4;
+        const int MinAmount = 1;
+        const int MaxAmount = 5e4;
         std::vector<double> sampleTmp;
         sampleTmp.clear();
         sampleTick.clear();
         for(double x = RangeL; x <= RangeR; x += (RangeR - RangeL) / TickCnt) {
-            sampleTmp.push_back(log(x));
+            sampleTmp.push_back(exp(x));
         }
         double rate = (MaxAmount - MinAmount) / (*(sampleTmp.end() - 1) - *sampleTmp.begin());
         for(double now : sampleTmp) {
@@ -220,29 +220,27 @@ struct V3Pool{
     */
 
    void buildRegressionModel() {
-        std::cerr << "Build New Regrission" << std::endl;
+        // std::cerr << "Build New Regrission" << std::endl;
         bool zeroToOne = IntPool->slot0.sqrtPriceX96 > 1;
 
-        reg.clear();
 
-        for(auto & now : sampleTick)
+
+        for(auto & now : sampleTick) {
             now.second = __querySwapInt(zeroToOne, now.first).ToDouble();
-
-        std::cerr << "SampleTick:\n";
-        for(auto now : sampleTick) std::cerr << now.first << "\n";
-
-        for(int i = 0; i < sampleTick.size(); i++) {
-            int R = i + 1;
-            Regression_t model;
-            while(R + 1 < sampleTick.size()
-               && Regression_t(sampleTick, i, R + 1).deviation(sampleTick, i, R + 1) <= MAX_DEVIATION ) R++;
-            std::cerr << "Range = [" << i << " " << R << "]" << std::endl;
-            std::cerr << Regression_t(sampleTick, i, R + 1).deviation(sampleTick, i, R + 1) << std::endl;
-            // if(i + 1 == R) break;
-            reg.push_back(Regression_t(sampleTick, i, R));
-            i = R;
         }
 
+        poly.clear();
+        Lagrange now;
+        for(int i = 2; i < sampleTick.size(); i += 2) {
+            now.init(sampleTick, i - 3, i + 1, i);
+            poly.push_back(now);
+        }
+
+        // std::cerr << "================== Ticks ==================" << std::endl;
+        // for(auto now : poly) {
+        //     std::cerr << now.Upper << std::endl;
+        // }
+        // std::cerr << "================== Ticks ==================" << std::endl;
    }
    V3Pool(Pool<false> * o) {
         InitSampleTick();
@@ -258,11 +256,12 @@ struct V3Pool{
     double query(bool zeroToOne, double amountIn) {
         static FloatType SQPRL = uint160("4295128740").X96ToDouble();
         static FloatType SQPRR = uint160("1461446703485210103287273052203988822378723970341").X96ToDouble();
-        static Regression_t temp;
-        if(zeroToOne == (IntPool->slot0.sqrtPriceX96 > 1) && reg.size() && amountIn < (reg.end() - 1)->upper) {
-            temp.upper = amountIn;
-            std::vector<Regression_t>::iterator model = upper_bound(reg.begin(), reg.end(), temp);
-            return (*model)(amountIn);
+        if(zeroToOne == (IntPool->slot0.sqrtPriceX96 > 1) && amountIn <= (poly.end() - 1)->Upper) {
+            static Lagrange temp;
+            temp.Upper = amountIn;
+            auto aim = lower_bound(poly.begin(), poly.end(), temp);
+            assert(aim != poly.end());
+            return (*aim)(amountIn);
         } else {
             return zeroToOne ? swap(FloatPool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false).second
                              : swap(FloatPool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false).first;
@@ -533,43 +532,42 @@ int main(){
     std::ifstream fin("pool_events_test_");
     int fee; int tickSpacing; uint256 maxLiquidityPerTick;
     fin >> fee >> tickSpacing >> maxLiquidityPerTick;
-    // V3Pool pool(fee, tickSpacing, maxLiquidityPerTick);
+    V3Pool pool(fee, tickSpacing, maxLiquidityPerTick);
 
-    FILE * fptr = fopen("pool_state", "rb");
-    fread(buffer, 1, sizeof(buffer), fptr);
-    V3Pool pool((Pool<false>*)buffer);
+    // FILE * fptr = fopen("pool_state", "rb");
+    // fread(buffer, 1, sizeof(buffer), fptr);
+    // V3Pool pool((Pool<false>*)buffer);
 
-    std::cerr << "======================== Regression ========================" << std::endl;
-    for(Regression_t & now : pool.reg) {
-        std::cerr << now.a << " " << now.b << " " << now.upper << std::endl;
+    std::vector<V3Event> data;
+    int tot = 0;
+
+    const int PreProcess = 4028270;
+
+    while(true) {
+        auto [even, eof] = v3::tempReadEventsFile(fin);
+        if(eof) break;
+        pool.processEvent(even);
+        tot ++;
+        if(tot % 10000 == 0) std::cerr << "Pre handle = " << tot << std::endl;
+        if(tot > PreProcess) break;
     }
-    std::cerr << "======================== Regression ========================" << std::endl;
+    std::cerr << "Pre-Process done" << std::endl;
 
+    std::cerr << "Load events" << std::endl;
+    while(true) {
+        auto [even, eof] = v3::tempReadEventsFile(fin);
+        if(eof) break;
+        data.push_back(even);
+    }
+    std::cerr << "Load events done." << std::endl;
 
-    // std::vector<V3Event> data;
-    // int tot = 0;
-
-    // while(true) {
-    //     auto [even, eof] = v3::tempReadEventsFile(fin);
-    //     if(eof) break;
-    //     data.push_back(even);
-    //     if(data.size() > 1728270) break; // 1 GiB
-    // }
-    // std::cerr << "Total events = " << data.size() << std::endl;
-
-    // int preProcess = 1628270;
-    // for(int i = 0; i < preProcess; i++) {
-    //     pool.processEvent(data[i]);
-    //     if(DebugOutput = (i % 10000 == 0)) std::cerr << "handle " << i << std::endl;
-    // }
-
-    // double Timer = clock();
-    // for(int i = preProcess; i < data.size(); i++) {
-    //     pool.processEvent(data[i]);
-    // }
-    // Timer = (clock() - Timer) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
-    // Timer /= (data.size() - preProcess);
-    // std::cerr << "mean of process event time used = " << Timer << " ns\n";
+    double Timer = clock();
+    for(int i = 0; i < data.size(); i++) {
+        pool.processEvent(data[i]);
+    }
+    Timer = (clock() - Timer) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
+    Timer /= (data.size());
+    std::cerr << "mean of process event time used = " << Timer << " ns\n";
 
     Test::Test(pool, int256("94033269757636"), int256("65308223357628934551218"));
     SavePool(pool.IntPool, "pool_state");

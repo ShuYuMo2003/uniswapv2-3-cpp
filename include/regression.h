@@ -10,43 +10,31 @@ double deviation2v(double a, double b) {
     return fabs((a - b) / std::max(a, b));
 }
 
-struct Regression_t{
-    FloatType upper;
-    long double a, b; // y = a + b * x;
-    bool operator < (const Regression_t & rhs) const {
-        return upper < rhs.upper;
-    }
-    Regression_t(){}
-    Regression_t(std::vector<std::pair<unsigned int, double> > & sample, int L, int R) {
-        upper = sample[R].first;
-        int n = R - L + 1;
-        long double avex = 0, avey = 0, sampleSize = n;
+struct Lagrange{
+    std::vector<std::pair<long double, long double> > Pts;
+    double Upper;
+    bool operator < (const Lagrange & rhs) const { return Upper < rhs.Upper; }
+    Lagrange(){}
+    void init(const std::vector<std::pair<unsigned int, double> > & sample, int L, int R, int upperid) {
+        L = std::max(L, 0);
+        R = std::min(R, (int)sample.size() - 1);
+        Pts.clear();
+        Upper = sample[upperid].first;
         for(int i = L; i <= R; i++) {
-            avex += (x[i] = sample[i].first);
-            avey += (y[i] = sample[i].second);
+            auto now = sample[i];
+            Pts.push_back(now);
         }
-        avex /= sampleSize;
-        avey /= sampleSize;
-
-        long double norminator = 0, dominator = 0;
-        for(int i = 0; i < n; i++) {
-            norminator += x[i] * y[i];
-            dominator  += x[i] * x[i];
-        }
-
-        norminator -= sampleSize * avex * avey;
-        dominator  -= sampleSize * avex * avex;
-        b = norminator / dominator;
-        a = avey - b * avex;
     }
     double operator() (const double & _x) const {
-        return a + b * _x;
-    }
-    double deviation(std::vector<std::pair<unsigned int, double> > & sample, int L, int R) {
-        double dmax = -1;
-        for(int i = L; i <= R; i++) {
-            dmax = std::max(dmax, deviation2v(sample[i].second, a + b * sample[i].first));
+        long double ret = 0;
+        for(int i = 0; i < Pts.size(); i++) {
+            long double d = 1;
+            for(int j = 0; j < Pts.size(); j++) {
+                if(i == j) continue;
+                d *= (_x - Pts[j].first) / (Pts[i].first - Pts[j].first);
+            }
+            ret += d * Pts[i].second;
         }
-        return dmax;
+        return ret;
     }
 };
