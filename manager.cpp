@@ -429,7 +429,7 @@ namespace Test{
 
     void generateFromExpon(V3Pool & o, int256 upper0, int256 upper1) {
         tc.clear(); UNI_DATA_SIZE = 0;
-        for(int256 amount = 10; amount < upper0 / 2; (amount *= 12) /= 10) {
+        for(int256 amount = 10; amount < upper0 / 2; (amount *= 13) /= 10) {
             testcase now;
             now.zeroToOne  =  1;
             now.raw_amount =  amount;
@@ -439,7 +439,7 @@ namespace Test{
             now.result     = ret.ToDouble();
             tc.push_back(now);
         }
-        for(int256 amount = 10; amount < upper1 / 2; (amount *= 12) /= 10) {
+        for(int256 amount = 10; amount < upper1 / 2; (amount *= 13) /= 10) {
             testcase now;
             now.zeroToOne  =  0;
             now.raw_amount =  amount;

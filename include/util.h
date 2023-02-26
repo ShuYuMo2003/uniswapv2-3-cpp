@@ -33,4 +33,15 @@ bool isZero(T & o) { return o == 0; }
 
 template<>
 bool isZero<FloatType>(FloatType & o) { return fabs(o) < EPS; }
+
+
+__attribute__((always_inline)) void prefetch_range(void *addr, size_t len)
+{
+    void *cp;
+    void *end = addr + len;
+
+    for (cp = addr; cp < end; cp += 64)
+        __builtin_prefetch(cp);
+}
+
 #endif

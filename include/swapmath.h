@@ -95,7 +95,7 @@ std::tuple<uint160, uint256, uint256, uint256> computeSwapStep(
 }
 
 
-__attribute__((always_inline)) std::tuple<FloatType, FloatType, FloatType, FloatType> computeSwapStep(
+__attribute__((always_inline)) std::tuple<FloatType, FloatType, FloatType> computeSwapStep(
     const FloatType & sqrtRatioCurrentX96,
     const FloatType & sqrtRatioTargetX96,
     const FloatType & liquidity,
@@ -105,46 +105,35 @@ __attribute__((always_inline)) std::tuple<FloatType, FloatType, FloatType, Float
     // std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
 
     bool zeroForOne = sqrtRatioCurrentX96 - sqrtRatioTargetX96 >= -EPS;
-    bool exactIn = amountRemaining >= -EPS;
+
 
     FloatType sqrtRatioNextX96;
-    FloatType amountIn, amountOut, feeAmount;
+    FloatType amountIn, amountOut;
 
     // std::cerr << "ARG: " << zeroForOne << " " << exactIn << std::endl;
     const int RoundUpMode = 1;
     const int RoundDownMode = 0;
-    if (exactIn) {
-        FloatType amountRemainingLessFee = ((1e6 - feePips) / 1e6) * amountRemaining;// * mulDiv(amountRemaining , 1e6 - feePips, 1e6);
-        if(zeroForOne)
-            amountIn = getAmount0Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
-        else
-            amountIn = getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundUpMode);
-        if (amountRemainingLessFee >= amountIn) sqrtRatioNextX96 = sqrtRatioTargetX96;
-        else
-            sqrtRatioNextX96 = getNextSqrtPriceFromInput(
-                sqrtRatioCurrentX96,
-                liquidity,
-                amountRemainingLessFee,
-                zeroForOne
-            );
-    } else {
-        if(zeroForOne)
-            amountOut = getAmount1Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
-        else
-            amountOut = getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundDownMode);
-        if (-amountRemaining >= amountOut) sqrtRatioNextX96 = sqrtRatioTargetX96;
-        else
-            sqrtRatioNextX96 = getNextSqrtPriceFromOutput(
-                sqrtRatioCurrentX96,
-                liquidity,
-                -amountRemaining,
-                zeroForOne
-            );
-    }
+    bool condition0;
+
+    FloatType amountRemainingLessFee = ((1e6 - feePips) / 1e6) * amountRemaining;// * mulDiv(amountRemaining , 1e6 - feePips, 1e6);
+    if(zeroForOne)
+        amountIn = getAmount0Delta(sqrtRatioTargetX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
+    else
+        amountIn = getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundUpMode);
+
+    if (condition0 = (amountRemainingLessFee >= amountIn)) sqrtRatioNextX96 = sqrtRatioTargetX96;
+    else
+        sqrtRatioNextX96 = getNextSqrtPriceFromInput(
+            sqrtRatioCurrentX96,
+            liquidity,
+            amountRemainingLessFee,
+            zeroForOne
+        );
+
 
 
     // get the input/output amounts
-    if(fabs(sqrtRatioTargetX96 - sqrtRatioNextX96) > EPS) {
+    if(!condition0) {
         if (zeroForOne) {
             amountIn = getAmount0Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
             amountOut = getAmount1Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
@@ -154,31 +143,20 @@ __attribute__((always_inline)) std::tuple<FloatType, FloatType, FloatType, Float
         }
     } else {
         if (zeroForOne) {
-            if(exactIn)
-                amountOut = getAmount1Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
-            else
-                amountIn = getAmount0Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundUpMode);
+            amountOut = getAmount1Delta(sqrtRatioNextX96, sqrtRatioCurrentX96, liquidity, RoundDownMode);
         } else {
-            if(exactIn)
-                amountOut = getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundDownMode);
-            else
-                amountIn = getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundUpMode);
+            amountOut = getAmount0Delta(sqrtRatioCurrentX96, sqrtRatioNextX96, liquidity, RoundDownMode);
         }
     }
 
-    // cap the output amount to not exceed the remaining output amount
-    if (!exactIn && amountOut > -amountRemaining) {
-        amountOut = -amountRemaining;
-    }
-
-    if (exactIn && fabs(sqrtRatioNextX96 - sqrtRatioTargetX96) > EPS) {
+    if (!condition0) {
         // we didn't reach the target, so take the remainder of the maximum input as fee
-        feeAmount = amountRemaining - amountIn;
+        amountIn = amountRemaining;
     } else {
-        feeAmount = ceil(amountIn / ((1e6) - feePips) * feePips);
+        amountIn = amountIn + ceil(amountIn / ((1e6) - feePips) * feePips);
     }
 
-    return std::make_tuple(sqrtRatioNextX96, amountIn, amountOut, feeAmount);
+    return std::make_tuple(sqrtRatioNextX96, amountIn, amountOut);
 }
 
 #endif

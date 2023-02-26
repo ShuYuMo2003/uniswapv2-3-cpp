@@ -176,12 +176,12 @@ std::pair<int256, int256> swap(
     // std::cerr << zeroForOne << std::endl;
     // std::cerr << sqrtPriceLimitX96 << " " << slot0Start.sqrtPriceX96 << std::endl;
     // std::cerr << "Range [" << MIN_SQRT_RATIO << ", " << MAX_SQRT_RATIO << "]" << std::endl;
-    require(
-        zeroForOne
-            ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > MIN_SQRT_RATIO
-            : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < MAX_SQRT_RATIO,
-        "SPL"
-    );
+    // require(
+    //     zeroForOne
+    //         ? sqrtPriceLimitX96 < slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 > MIN_SQRT_RATIO
+    //         : sqrtPriceLimitX96 > slot0Start.sqrtPriceX96 && sqrtPriceLimitX96 < MAX_SQRT_RATIO,
+    //     "SPL"
+    // );
 
 
     uint128 liquidityCache = o->liquidity;
@@ -315,8 +315,7 @@ std::pair<FloatType, FloatType> swap(
         SwapRuntimeEnv(){}
         ~SwapRuntimeEnv(){}
     } env;
-    __builtin_prefetch(&env, 0, 3);
-    __builtin_prefetch(&env, 1, 3);
+    // prefetch_range(&env, sizeof(env));
 
     env.slot0Start = o->slot0;
 
@@ -373,7 +372,7 @@ std::pair<FloatType, FloatType> swap(
         env.step.sqrtPriceNextX96 = getSqrtRatioAtTick<FloatType>(env.step.tickNext->id);
 
         // std::cerr << "Price " << sqrtPriceLimitX96 << " " << step.sqrtPriceNextX96 << std::endl;
-        std::tie(env.state.sqrtPriceX96, env.step.amountIn, env.step.amountOut, env.step.feeAmount) = computeSwapStep(
+        std::tie(env.state.sqrtPriceX96, env.step.amountIn, env.step.amountOut) = computeSwapStep(
             env.state.sqrtPriceX96,
             env.step.sqrtPriceNextX96,
             env.state.liquidity,
@@ -384,7 +383,7 @@ std::pair<FloatType, FloatType> swap(
         // std::cerr << "Price = " << state.sqrtPriceX96 << std::endl;
 
         // if (env.exactInput) {
-            env.state.amountSpecifiedRemaining -= env.step.amountIn + env.step.feeAmount;
+            env.state.amountSpecifiedRemaining -= env.step.amountIn;//  + env.step.feeAmount;
             env.state.amountCalculated = env.state.amountCalculated - env.step.amountOut;
         // } else {
         //     env.state.amountSpecifiedRemaining += env.step.amountOut;
