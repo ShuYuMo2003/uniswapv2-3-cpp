@@ -96,7 +96,7 @@ struct SwapState {
     int24 tick;
     // the current liquidity in range
     typename std::conditional<enable_float, FloatType, uint128>::type liquidity;
-
+    SwapState(){}
     SwapState(
         typename std::conditional<enable_float, FloatType, int256>::type  amountSpecifiedRemaining,
         typename std::conditional<enable_float, FloatType, int256>::type  amountCalculated,

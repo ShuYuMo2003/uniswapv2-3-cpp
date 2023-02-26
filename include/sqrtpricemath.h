@@ -193,16 +193,17 @@ __attribute__((always_inline)) FloatType getAmount0Delta(
     FloatType liquidity,
     int roundUp
 ) {
-    if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
+    static FloatType numerator2;
 
-    FloatType numerator1 = liquidity;
-    FloatType numerator2 = sqrtRatioBX96 - sqrtRatioAX96;
+    if (sqrtRatioAX96 > sqrtRatioBX96) numerator2 = sqrtRatioAX96 - sqrtRatioBX96;
+    else numerator2 = sqrtRatioBX96 - sqrtRatioAX96;
 
     require(sqrtRatioAX96 > 0, "QWQ");
+
     switch(roundUp) {
-        case 2: return (numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96);
-        case 0: return floor((numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96) + 1e-2);
-        case 1: return ceil((numerator1 / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96));
+        case 0: return floor((liquidity / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96) + 1e-2);
+        case 1: return ceil((liquidity / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96));
+        case 2: return (liquidity / sqrtRatioBX96) * (numerator2 / sqrtRatioAX96);
     }
 }
 
@@ -237,11 +238,11 @@ __attribute__((always_inline)) FloatType getAmount1Delta(
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
     if(fabs(sqrtRatioAX96 - sqrtRatioBX96) < 1e-11)
-        sqrtRatioAX96 = sqrtRatioBX96;
+        return 0;
     switch(roundUp) {
-        case 2: return liquidity * (sqrtRatioBX96 - sqrtRatioAX96);
         case 0: return floor(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
         case 1: return ceil(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
+        case 2: return liquidity * (sqrtRatioBX96 - sqrtRatioAX96);
     }
 }
 

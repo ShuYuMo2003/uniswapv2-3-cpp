@@ -17,3 +17,6 @@ pool_swap_events
 hideinfo
 temp_*
 sample.txt
+events/*
+*_events
+*.log

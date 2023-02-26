@@ -429,7 +429,7 @@ namespace Test{
 
     void generateFromExpon(V3Pool & o, int256 upper0, int256 upper1) {
         tc.clear(); UNI_DATA_SIZE = 0;
-        for(int256 amount = 10; amount < upper0 / 2; (amount *= 15) /= 10) {
+        for(int256 amount = 10; amount < upper0 / 2; (amount *= 12) /= 10) {
             testcase now;
             now.zeroToOne  =  1;
             now.raw_amount =  amount;
@@ -439,7 +439,7 @@ namespace Test{
             now.result     = ret.ToDouble();
             tc.push_back(now);
         }
-        for(int256 amount = 10; amount < upper1 / 2; (amount *= 15) /= 10) {
+        for(int256 amount = 10; amount < upper1 / 2; (amount *= 12) /= 10) {
             testcase now;
             now.zeroToOne  =  0;
             now.raw_amount =  amount;
@@ -490,7 +490,6 @@ namespace Test{
         for(int t = 0; t < UNI_DATA_SIZE; t++) {
             // std::cerr << "Testing t = " << t << std::endl;
             timer[t] = clock();
-
             for(int i = 0; i < TEST_TIME; i++) {
                 result[t] = o.query(tc[t].zeroToOne, tc[t].amount);
             }
@@ -525,33 +524,17 @@ namespace Test{
 }
 
 
-int main(){
+int main(int argc, char * argv){
     std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(20);
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(1);
     initializeTicksPrice();
-    std::ifstream fin("pool_events_test_");
+    std::ifstream fin("events/main_pool");
     int fee; int tickSpacing; uint256 maxLiquidityPerTick;
     fin >> fee >> tickSpacing >> maxLiquidityPerTick;
+#ifdef HANDLE_EVENTS
     V3Pool pool(fee, tickSpacing, maxLiquidityPerTick);
-
-    // FILE * fptr = fopen("pool_state", "rb");
-    // fread(buffer, 1, sizeof(buffer), fptr);
-    // V3Pool pool((Pool<false>*)buffer);
-
     std::vector<V3Event> data;
     int tot = 0;
-
-    const int PreProcess = 4028270;
-
-    while(true) {
-        auto [even, eof] = v3::tempReadEventsFile(fin);
-        if(eof) break;
-        pool.processEvent(even);
-        tot ++;
-        if(tot % 10000 == 0) std::cerr << "Pre handle = " << tot << std::endl;
-        if(tot > PreProcess) break;
-    }
-    std::cerr << "Pre-Process done" << std::endl;
 
     std::cerr << "Load events" << std::endl;
     while(true) {
@@ -564,10 +547,17 @@ int main(){
     double Timer = clock();
     for(int i = 0; i < data.size(); i++) {
         pool.processEvent(data[i]);
+        if((i & ((1 << 14) - 1)) == 0) std::cerr << "Handle " << i << std::endl;
     }
     Timer = (clock() - Timer) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
     Timer /= (data.size());
     std::cerr << "mean of process event time used = " << Timer << " ns\n";
+#else
+    FILE * fptr = fopen("pool_state", "rb");
+    fread(buffer, 1, sizeof(buffer), fptr);
+    V3Pool pool((Pool<false>*)buffer);
+#endif
+
 
     Test::Test(pool, int256("94033269757636"), int256("65308223357628934551218"));
     SavePool(pool.IntPool, "pool_state");

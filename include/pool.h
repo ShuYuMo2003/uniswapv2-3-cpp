@@ -297,52 +297,64 @@ std::pair<int256, int256> swap(
 std::pair<FloatType, FloatType> swap(
     Pool<true> *o,
     bool zeroForOne,
-    FloatType amountSpecified,
-    FloatType sqrtPriceLimitX96,
+    FloatType & amountSpecified,
+    FloatType & sqrtPriceLimitX96,
     bool effect)
 {
     bool newOperation = true;
 
     require(fabs(amountSpecified) > EPS, "AS");
+    static __attribute__((aligned(64))) struct SwapRuntimeEnv{
+        StepComputations<true> step;
+        SwapState<true> state;
+        FloatType liquidityCache;
+        FloatType lastAmountSpecifiedRemaining;
+        int cnt;
+        FloatType liquidityNet;
+        Slot0<true> slot0Start;
+        SwapRuntimeEnv(){}
+        ~SwapRuntimeEnv(){}
+    } env;
+    __builtin_prefetch(&env, 0, 3);
+    __builtin_prefetch(&env, 1, 3);
 
-    Slot0<true> slot0Start = o->slot0;
+    env.slot0Start = o->slot0;
 
-    FloatType liquidityCache = o->liquidity;
+    env.liquidityCache = o->liquidity;
 
-    bool exactInput = amountSpecified > 0;
+    require(amountSpecified > 0 && !effect, "QA");
 
-    SwapState<true> state = SwapState<true>(
+    env.state = SwapState<true>(
         amountSpecified,
         0,
-        slot0Start.sqrtPriceX96,
-        slot0Start.tick,
-        liquidityCache
+        env.slot0Start.sqrtPriceX96,
+        env.slot0Start.tick,
+        env.liquidityCache
     );
 
     // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
-    FloatType lastAmountSpecifiedRemaining = 0;
-    int cnt = 0;
+    env.lastAmountSpecifiedRemaining = 0;
+    env.cnt = 0;
 
-    while (fabs(state.amountSpecifiedRemaining) > EPS
-        && amountSpecified * state.amountSpecifiedRemaining > 0
-        && fabs(state.sqrtPriceX96 - sqrtPriceLimitX96) > EPS) {
+    while (fabs(env.state.amountSpecifiedRemaining) > EPS
+        && env.state.amountSpecifiedRemaining > 0
+        && fabs(env.state.sqrtPriceX96 - sqrtPriceLimitX96) > EPS) {
 
-        if(fabs(lastAmountSpecifiedRemaining - state.amountSpecifiedRemaining) < EPS) cnt++;
-        else cnt = 0;
-        if (cnt > 2) break;
+        if(fabs(env.lastAmountSpecifiedRemaining - env.state.amountSpecifiedRemaining) < EPS) env.cnt++;
+        else env.cnt = 0;
+        if (env.cnt > 2) break;
 
         // printf("%d Remainding = %.5lf\n", cnt, state.amountSpecifiedRemaining);
 
-        lastAmountSpecifiedRemaining = state.amountSpecifiedRemaining;
+        env.lastAmountSpecifiedRemaining = env.state.amountSpecifiedRemaining;
 
-        StepComputations<true> step;
 
-        step.sqrtPriceStartX96 = state.sqrtPriceX96;
+        env.step.sqrtPriceStartX96 = env.state.sqrtPriceX96;
 
         // std::cerr << "? Query " << zeroForOne << " " << state.tick << std::endl;
-        std::tie(step.tickNext, step.initialized) = nextInitializedTickWithinOneWord(
+        std::tie(env.step.tickNext, env.step.initialized) = nextInitializedTickWithinOneWord(
             &(o->ticks),
-            state.tick,
+            env.state.tick,
             o->tickSpacing,
             zeroForOne,
             newOperation
@@ -351,85 +363,78 @@ std::pair<FloatType, FloatType> swap(
         // std::cerr << zeroForOne << " Nxt tick of " << state.tick << " is " << step.tickNext->id << std::endl << std::endl;
 
         // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
-        if (step.tickNext->id < MIN_TICK) {
-            step.tickNext = &MIN_TICK_OBJ_TRUE;
-        } else if (step.tickNext->id > MAX_TICK) {
-            step.tickNext = &MAX_TICK_OBJ_TRUE;
+        if (env.step.tickNext->id < MIN_TICK) {
+            env.step.tickNext = &MIN_TICK_OBJ_TRUE;
+        } else if (env.step.tickNext->id > MAX_TICK) {
+            env.step.tickNext = &MAX_TICK_OBJ_TRUE;
         }
 
         // get the price for the next tick
-        step.sqrtPriceNextX96 = getSqrtRatioAtTick<FloatType>(step.tickNext->id);
+        env.step.sqrtPriceNextX96 = getSqrtRatioAtTick<FloatType>(env.step.tickNext->id);
 
         // std::cerr << "Price " << sqrtPriceLimitX96 << " " << step.sqrtPriceNextX96 << std::endl;
-        std::tie(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = computeSwapStep(
-            state.sqrtPriceX96,
-            ((zeroForOne ? (step.sqrtPriceNextX96 < sqrtPriceLimitX96) : (step.sqrtPriceNextX96 > sqrtPriceLimitX96))
-                ? sqrtPriceLimitX96
-                : step.sqrtPriceNextX96),
-            state.liquidity,
-            state.amountSpecifiedRemaining,
+        std::tie(env.state.sqrtPriceX96, env.step.amountIn, env.step.amountOut, env.step.feeAmount) = computeSwapStep(
+            env.state.sqrtPriceX96,
+            env.step.sqrtPriceNextX96,
+            env.state.liquidity,
+            env.state.amountSpecifiedRemaining,
             o->fee
         );
 
         // std::cerr << "Price = " << state.sqrtPriceX96 << std::endl;
 
-        if (exactInput) {
-            state.amountSpecifiedRemaining -= step.amountIn + step.feeAmount;
-            state.amountCalculated = state.amountCalculated - step.amountOut;
-        } else {
-            state.amountSpecifiedRemaining += step.amountOut;
-            state.amountCalculated = state.amountCalculated + step.amountIn + step.feeAmount;
-        }
+        // if (env.exactInput) {
+            env.state.amountSpecifiedRemaining -= env.step.amountIn + env.step.feeAmount;
+            env.state.amountCalculated = env.state.amountCalculated - env.step.amountOut;
+        // } else {
+        //     env.state.amountSpecifiedRemaining += env.step.amountOut;
+        //     env.state.amountCalculated = env.state.amountCalculated + env.step.amountIn + env.step.feeAmount;
+        // }
         // std::cerr << "Remaining = " << state.amountSpecifiedRemaining << std::endl;
         // std::cerr << "Calculate = " << state.amountCalculated << std::endl;
         // shift tick if we reached the next price
-        if (fabs(state.sqrtPriceX96 - step.sqrtPriceNextX96) < EPS) {
+        if (fabs(env.state.sqrtPriceX96 - env.step.sqrtPriceNextX96) < EPS) {
             // std::cerr << "CASE 0" << std::endl;
             // if the tick is initialized, run the tick transition
-            if (step.initialized) {
-                FloatType liquidityNet = step.tickNext->liquidityNet;
+            if (env.step.initialized) {
+                env.liquidityNet = env.step.tickNext->liquidityNet;
                 // if we're moving leftward, we interpret liquidityNet as the opposite sign
                 // safe because liquidityNet cannot be type(int128).min
-                if (zeroForOne) liquidityNet = -liquidityNet;
-                state.liquidity = addDelta(state.liquidity, liquidityNet);
+                if (zeroForOne) env.liquidityNet = -env.liquidityNet;
+
+                env.state.liquidity += env.liquidityNet;
             }
 
-            state.tick = zeroForOne ? step.tickNext->id - 1 : step.tickNext->id;
-        } else if (fabs( state.sqrtPriceX96 - step.sqrtPriceStartX96) > EPS) {
+            env.state.tick = zeroForOne ? env.step.tickNext->id - 1 : env.step.tickNext->id;
+        } else if (fabs( env.state.sqrtPriceX96 - env.step.sqrtPriceStartX96) > EPS) {
             // std::cerr << "CASE 1" << std::endl;
             // recompute unless we're on a lower tick boundary (i.e. already transitioned ticks), and haven't moved
-            state.tick = getTickAtSqrtRatio(state.sqrtPriceX96);
+
+            if(zeroForOne) {
+                while(getSqrtRatioAtTick<FloatType>(env.state.tick - 1) >= env.state.sqrtPriceX96) {
+                    env.state.tick--;
+                }
+            } else {
+                while(getSqrtRatioAtTick<FloatType>(env.state.tick + 1) <= env.state.sqrtPriceX96) {
+                    env.state.tick++;
+                }
+            }
+
+            // env.state.tick = getTickAtSqrtRatio(env.state.sqrtPriceX96);
+
             // std::cerr << "?? state.sqrtPriceX96 = " << state.sqrtPriceX96 << " tick = " << state.tick << std::endl;
         }
     }
-    // std::cerr << "state.price = " << state.sqrtPriceX96 << std::endl;
-    // std::cerr << "state.tick = " << state.tick << std::endl;
-    if(effect) {
-        // std::cerr<<"?? slot0 sqrtPrice = " << o->slot0.sqrtPriceX96 << std::endl;
-        if (state.tick != slot0Start.tick) {
-            // std::cerr << "case 0" << std::endl;
-            o->slot0.sqrtPriceX96 = state.sqrtPriceX96;
-            o->slot0.tick = state.tick;
-        } else {
-            // std::cerr << "case 1" << std::endl;
-            // otherwise just update the price
-            o->slot0.sqrtPriceX96 = state.sqrtPriceX96;
-        }
-        // update liquidity if it changed
-        if (liquidityCache != state.liquidity) o->liquidity = state.liquidity;
-
-        // std::cerr<<"++ slot0 sqrtPrice = " << o->slot0.sqrtPriceX96 << std::endl;
-    }
 
     FloatType amount0, amount1;
-    if (zeroForOne == exactInput) {
+    if (zeroForOne) {
         // std::cerr << "final case 0" << std::endl;
-        amount0 = amountSpecified - state.amountSpecifiedRemaining;
-        amount1 = state.amountCalculated;
+        amount0 = amountSpecified - env.state.amountSpecifiedRemaining;
+        amount1 = env.state.amountCalculated;
     } else {
         // std::cerr << "final case 1" << std::endl;
-        amount0 = state.amountCalculated;
-        amount1 = amountSpecified - state.amountSpecifiedRemaining;
+        amount0 = env.state.amountCalculated;
+        amount1 = amountSpecified - env.state.amountSpecifiedRemaining;
     }
     // do the transfers and collect payment
     return std::make_pair(amount0, amount1);
