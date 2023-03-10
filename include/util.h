@@ -26,7 +26,7 @@ __attribute__((always_inline)) void require(bool condition, char * msg) {
     ASSERT(condition, "msg: " << msg);
 }
 
-#define abs(o) ((o) < 0 ? (-(o)) : (o))
+// #define abs(o) ((o) < 0 ? (-(o)) : (o))
 
 template<typename T>
 bool isZero(T & o) { return o == 0; }
@@ -37,10 +37,10 @@ bool isZero<FloatType>(FloatType & o) { return fabs(o) < EPS; }
 
 __attribute__((always_inline)) void prefetch_range(void *addr, size_t len)
 {
-    void *cp;
-    void *end = addr + len;
+    char *cp;
+    char *end = (char*)addr + len;
 
-    for (cp = addr; cp < end; cp += 64)
+    for (cp = (char*)addr; cp < end; cp += 64)
         __builtin_prefetch(cp);
 }
 

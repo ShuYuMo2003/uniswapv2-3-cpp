@@ -142,7 +142,7 @@ std::pair<_Tick<enable_float> *, bool> nextInitializedTickWithinOneWord(
             o->temp.id = tick * tickspace;
             _Tick<enable_float> * next = std::upper_bound(beginPtr, endPtr, o->temp, tickCmp<enable_float>);
 
-            if(newOperation) prefetch_range((void*)(&next->id) - 64, 64);
+            if(newOperation) prefetch_range((char*)(&next->id) - 64, 64);
 
             if(next == beginPtr || GWordPos((next - 1)->id / tickspace) != wordPos){
                 o->temp.id = fetchLowerBound(wordPos) * tickspace;

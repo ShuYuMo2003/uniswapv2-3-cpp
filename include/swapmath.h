@@ -104,7 +104,7 @@ __attribute__((always_inline)) std::tuple<FloatType, FloatType, FloatType> compu
 ) {
     // std::cerr << "computeSwapStep(sqrtRatioCurrentX96 = " << sqrtRatioCurrentX96 << ", sqrtRatioTargetX96 = " << sqrtRatioTargetX96 << ", liquidity = " << liquidity << ", amountRemaining = " << amountRemaining << ", feePips = " << feePips << std::endl;
 
-    bool zeroForOne = sqrtRatioCurrentX96 - sqrtRatioTargetX96 >= -EPS;
+    bool zeroForOne = (sqrtRatioCurrentX96 - sqrtRatioTargetX96 >= -1e-13);
 
 
     FloatType sqrtRatioNextX96;

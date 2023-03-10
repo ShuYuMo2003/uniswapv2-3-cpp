@@ -237,8 +237,8 @@ __attribute__((always_inline)) FloatType getAmount1Delta(
 ) {
     if (sqrtRatioAX96 > sqrtRatioBX96) std::swap(sqrtRatioAX96, sqrtRatioBX96);
 
-    if(fabs(sqrtRatioAX96 - sqrtRatioBX96) < 1e-11)
-        return 0;
+    // if(fabs(sqrtRatioAX96 - sqrtRatioBX96) < 1e-15)
+    //     return 0;
     switch(roundUp) {
         case 0: return floor(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
         case 1: return ceil(liquidity * (sqrtRatioBX96 - sqrtRatioAX96));
