@@ -82,6 +82,16 @@ namespace Test{
         return ret;
     }
     void Test(V3Pool & o, int256 upper0, int256 upper1){
+
+        // std::cerr << "===================== FLOAT POOL ===================== " << std::endl;
+        // auto ret0 = o.__querySwapFloat(1, 82256);
+        // std::cerr << "===================== BIGIN POOL ===================== " << std::endl;
+        // auto ret1 = o.__querySwapInt(1, 82256);
+        // std::cerr << "====================================================== " << std::endl;
+        // std::cout << ret0 << " " << ret1 << std::endl;
+
+        // return ;
+
         std::cerr << "Generating test data" << std::endl;
         generateFromExpon(o, upper0, upper1);
         std::cerr << "Generating test data done" << std::endl;
@@ -89,7 +99,7 @@ namespace Test{
         for(int t = 0; t < UNI_DATA_SIZE; t++) {
             // std::cerr << "Testing t = " << t << std::endl;
             timer[t] = clock();
-            for(int i = 0; i < TEST_TIME; i++) {
+            for(int i = 0; i < 1; i++) {
                 result[t] = o.query(tc[t].zeroToOne, tc[t].amount);
             }
 
@@ -127,7 +137,7 @@ int main(){
     std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(20);
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(1);
     initializeTicksPrice();
-    std::ifstream fin("../events/0x4585FE77225b41b697C938B018E2Ac67Ac5a20c0_events");
+    std::ifstream fin("../events/test");
     int fee; int tickSpacing; uint256 maxLiquidityPerTick;
     fin >> fee >> tickSpacing >> maxLiquidityPerTick;
 #ifdef HANDLE_EVENTS
@@ -153,8 +163,8 @@ int main(){
     std::cerr << "mean of process event time used = " << Timer << " ns\n";
 #else
     FILE * fptr = fopen("pool_state", "rb");
-    fread(buffer, 1, sizeof(buffer), fptr);
-    V3Pool pool((Pool<false>*)buffer);
+    fread(v3::buffer, 1, sizeof(v3::buffer), fptr);
+    V3Pool pool((Pool<false>*)v3::buffer);
 #endif
 
 

@@ -338,6 +338,10 @@ std::pair<FloatType, FloatType> swap(
     while (fabs(env.state.amountSpecifiedRemaining) > EPS
         && env.state.amountSpecifiedRemaining > 0
         && fabs(env.state.sqrtPriceX96 - sqrtPriceLimitX96) > EPS) {
+            // 一种更好的写法
+            // (zeroForOne ? env.state.sqrtPriceX96 > sqrtPriceLimitX96 : env.state.sqrtPriceX96 < sqrtPriceLimitX96)
+            // 未测试 固 未替换
+            // 这个条件出问题再说吧
 
         if(fabs(env.lastAmountSpecifiedRemaining - env.state.amountSpecifiedRemaining) < EPS) env.cnt++;
         else env.cnt = 0;

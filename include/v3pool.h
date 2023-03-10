@@ -255,21 +255,29 @@ struct V3Pool{
                         && IntPool->slot0.tick == e.tick
                         && IntPool->slot0.sqrtPriceX96 == e.sqrtPrice);
             }
-
-            assert(success);
+            if(not success) {
+                std::cout << e.address << " " << e.amount << std::endl;
+                assert(false);
+            }
         } else if(type == MINT) {
             std::tie(ramount0, ramount1) = mint(IntPool,
                                                   e.tickLower,
                                                   e.tickUpper,
                                                   e.amount);
-            assert(ramount0 == e.ramount0 && ramount1 == e.ramount1);
+            if(ramount0 == e.ramount0 && ramount1 == e.ramount1); else {
+                std::cout << e.address << " " << e.tickLower << " " << e.tickUpper << e.amount << std::endl;
+                assert(false);
+            }
             maintainIntPool();
         } else if(type == BURN) {
             std::tie(ramount0, ramount1) = burn(IntPool,
                                                   e.tickLower,
                                                   e.tickUpper,
                                                   e.amount);
-            assert(ramount0 == e.ramount0 && ramount1 == e.ramount1);
+            if(ramount0 == e.ramount0 && ramount1 == e.ramount1); else {
+                std::cout << e.address << " " << e.tickLower << " " << e.tickUpper << e.amount << std::endl;
+                assert(false);
+            }
             maintainIntPool();
         } else if(type == INIT) {
             int nowTick = initialize(IntPool, e.sqrtPrice);

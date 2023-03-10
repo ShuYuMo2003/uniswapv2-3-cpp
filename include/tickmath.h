@@ -92,7 +92,7 @@ __attribute__((always_inline)) FloatType getSqrtRatioAtTick<FloatType>(int24 tic
 int24 getTickAtSqrtRatio(const FloatType & sqrtPriceX96) {
     require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
     return (std::upper_bound(getSqrtRatioAtTickMemory_float,
-                        getSqrtRatioAtTickMemory_float + (MAX_TICK << 1 | 1) + 1,
+                        getSqrtRatioAtTickMemory_float + (MAX_TICK + shift) + 1,
                         sqrtPriceX96)
             - getSqrtRatioAtTickMemory_float - 1) - shift;
 }
@@ -100,7 +100,7 @@ int24 getTickAtSqrtRatio(const FloatType & sqrtPriceX96) {
 int24 getTickAtSqrtRatio(const uint160 & sqrtPriceX96) {
     require(ticks_price_initialized, "You should call `initializeTicksPrice()` in tickmath.h to initilize the price of tick.");
     return (std::upper_bound(getSqrtRatioAtTickMemory,
-                        getSqrtRatioAtTickMemory + (MAX_TICK << 1 | 1) + 1,
+                        getSqrtRatioAtTickMemory + (MAX_TICK + shift) + 1,
                         sqrtPriceX96)
             - getSqrtRatioAtTickMemory - 1) - shift;
 /*

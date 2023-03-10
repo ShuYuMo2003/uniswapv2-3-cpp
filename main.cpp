@@ -46,7 +46,7 @@ std::pair<bool, std::vector<v3::V3Event>> fetchEvents(int BlockNumber) {
         std::istringstream istr(rawData);
         result.push_back(v3::rawdata2event(istr));
     }
-    // eventsColl.delete_many(document{} << "blockNumber" << BlockNumber << finalize);
+    eventsColl.delete_many(document{} << "blockNumber" << BlockNumber << finalize);
     return std::make_pair(true, result);
 }
 
@@ -62,7 +62,8 @@ int main(){
     while("💤Shu💝Yu💖Mo💤") {
         auto [exist, events] = fetchEvents(toHandleBlock);
         if(!exist){
-            std::cout << "[W]   The `block " << toHandleBlock << "` have not been created yet." << std::endl;
+            static int waitedtime = 0;
+            std::cout << "[W]   The `block " << toHandleBlock << "` have not been created yet. waitedtime = " << ++waitedtime << std::endl;
             usleep(500 * 1000); // 500 ms.
             continue;
         }
