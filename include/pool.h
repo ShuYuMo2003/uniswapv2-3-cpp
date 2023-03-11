@@ -303,7 +303,9 @@ std::pair<FloatType, FloatType> swap(
 {
     bool newOperation = true;
 
-    require(fabs(amountSpecified) > EPS, "AS");
+    if(fabs(amountSpecified) > EPS); else return std::make_pair(-1, -1);
+    // require(fabs(amountSpecified) > EPS, "AS");
+
     static __attribute__((aligned(64))) struct SwapRuntimeEnv{
         StepComputations<true> step;
         SwapState<true> state;

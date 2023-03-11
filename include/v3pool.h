@@ -189,10 +189,10 @@ struct V3Pool{
         } else {
             auto result = swap(FloatPool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false);
             if(zeroToOne) {
-                if(fabs(result.first - amountIn) < EPS) return result.second;
+                if(fabs(result.first - amountIn) < EPS) return -result.second;
                 else return -1;
             } else {
-                if(fabs(result.second - amountIn) < EPS) return result.first;
+                if(fabs(result.second - amountIn) < EPS) return -result.first;
                 else return -1;
             }
         }
