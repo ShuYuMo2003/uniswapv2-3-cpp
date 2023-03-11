@@ -1,4 +1,4 @@
-#include "include/v3pool.h"
+#include "include/graph.h"
 #include <map>
 #include <cstring>
 #include <ctime>
@@ -41,12 +41,28 @@ std::pair<bool, std::vector<v3::V3Event>> fetchEvents(int BlockNumber) {
 
     mongocxx::cursor cursor = eventsColl.find(document{} << "blockNumber" << BlockNumber << finalize);
 
+    std::vector<std::pair<int, std::string>> temp;
+
     for (auto doc : cursor) {
         auto rawData = std::string{doc["handledData"].get_string().value};
-        std::istringstream istr(rawData);
-        result.push_back(v3::rawdata2event(istr));
+        int index = doc["_id"]["logIndex"].get_int32().value;
+        temp.push_back(std::make_pair(index, rawData));
     }
+
+    sort(temp.begin(), temp.end());
+
+    for(auto [logindex, rawevent] : temp) {
+        std::istringstream istr(rawevent);
+        result.push_back(v3::rawdata2event(istr));
+#ifdef DEBUG
+        FILE * fptr = fopen(("./log/" + (result.end() - 1)->address + ".txt").c_str(), "a+");
+        fprintf(fptr, "%s", rawevent.c_str());
+        fclose(fptr);
+#endif
+    }
+
     eventsColl.delete_many(document{} << "blockNumber" << BlockNumber << finalize);
+
     return std::make_pair(true, result);
 }
 
@@ -57,6 +73,7 @@ int main(){
     mongocxx::client client(uri);
     mongocxx::database db = client["symbc"];
     eventsColl = db["queue"];
+    std::ofstream fout("circle_founded_info.log");
 
     int toHandleBlock = 12369738;
     while("💤Shu💝Yu💖Mo💤") {
@@ -75,15 +92,22 @@ int main(){
             if(e.type == v3::CRET){
                 assert(!v3Pool.count(e.address));
                 v3Pool[e.address] = new v3::V3Pool(e.fee, e.tickspace, e.liquidity);
-                std::cout << "[S]   New v3 pool " << e.address << " created and been listened." << std::endl;
+                graph::addV3Pool(e.token0, e.token1, v3Pool[e.address]);
+                std::cout << "[S]   New v3 pool " << e.address << " created and been listened. the number of recognised token = " << graph::token_num << " the number of pools = " << graph::v3_pool_num  << "." << std::endl;
             } else {
                 assert(v3Pool.count(e.address));
                 v3Pool[e.address]->processEvent(e);
             }
             v3Pool[e.address]->save("./pool_state/" + e.address + ".ip");
         }
+        if(events.size()) {
+            auto [found, circle] = graph::FindCircle();
+            if(found) {
+                fout << "After block: " << toHandleBlock << std::endl;
+                fout << circle << std::endl;
+            }
+        }
         toHandleBlock++;
-        // FindCycle();
     }
     // error on 12376424
     return 0;

@@ -1,9 +1,11 @@
+#ifndef headerfileregression
+#define headerfileregression
+
 #include <cmath>
 #include <vector>
 #include "types.h"
 #include "consts.h"
 
-static long double x[102400], y[102400];
 
 double deviation2v(double a, double b) {
     if(fabs(a - b) < EPS) return 0;
@@ -38,3 +40,5 @@ struct Lagrange{
         return ret;
     }
 };
+
+#endif

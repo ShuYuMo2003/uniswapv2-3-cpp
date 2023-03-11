@@ -187,8 +187,14 @@ struct V3Pool{
             assert(aim != poly.end());
             return (*aim)(amountIn);
         } else {
-            return fabs(zeroToOne ? swap(FloatPool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false).second
-                                  : swap(FloatPool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false).first);
+            auto result = swap(FloatPool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false);
+            if(zeroToOne) {
+                if(fabs(result.first - amountIn) < EPS) return result.second;
+                else return -1;
+            } else {
+                if(fabs(result.second - amountIn) < EPS) return result.first;
+                else return -1;
+            }
         }
     }
     void processEvent(V3Event & e){
@@ -214,7 +220,13 @@ struct V3Pool{
                                                     e.zeroToOne ? SQPRL
                                                                 : SQPRR,
                                                     true);
-
+                // std::cerr << "================================== validate info 1 ==================================" << std::endl;
+                // std::cerr << ramount0 << " " << e.ramount0 << std::endl;
+                // std::cerr << ramount1 << " " << e.ramount1 << std::endl;
+                // std::cerr << IntPool->liquidity << " " << e.liquidity << std::endl;
+                // std::cerr << IntPool->slot0.tick << " " << e.tick << std::endl;
+                // std::cerr << IntPool->slot0.sqrtPriceX96 << " " << e.sqrtPrice << std::endl;
+                // std::cerr << "================================== END END END ==================================" << std::endl;
                 success = (ramount0 == e.ramount0
                         && ramount1 == e.ramount1
                         && IntPool->liquidity == e.liquidity
@@ -232,6 +244,13 @@ struct V3Pool{
                                                     e.zeroToOne ? SQPRL
                                                                 : SQPRR,
                                                     true);
+                // std::cerr << "================================== validate info 2 ==================================" << std::endl;
+                // std::cerr << ramount0 << " " << e.ramount0 << std::endl;
+                // std::cerr << ramount1 << " " << e.ramount1 << std::endl;
+                // std::cerr << IntPool->liquidity << " " << e.liquidity << std::endl;
+                // std::cerr << IntPool->slot0.tick << " " << e.tick << std::endl;
+                // std::cerr << IntPool->slot0.sqrtPriceX96 << " " << e.sqrtPrice << std::endl;
+                // std::cerr << "================================== END END END ==================================" << std::endl;
 
                 success = (ramount0 == e.ramount0
                         && ramount1 == e.ramount1
@@ -248,7 +267,13 @@ struct V3Pool{
                                                     e.amount * 10,
                                                     e.sqrtPrice,
                                                     true);
-
+                // std::cerr << "================================== validate info 3 ==================================" << std::endl;
+                // std::cerr << ramount0 << " " << e.ramount0 << std::endl;
+                // std::cerr << ramount1 << " " << e.ramount1 << std::endl;
+                // std::cerr << IntPool->liquidity << " " << e.liquidity << std::endl;
+                // std::cerr << IntPool->slot0.tick << " " << e.tick << std::endl;
+                // std::cerr << IntPool->slot0.sqrtPriceX96 << " " << e.sqrtPrice << std::endl;
+                // std::cerr << "================================== END END END ==================================" << std::endl;
                 success = (ramount0 == e.ramount0
                         && ramount1 == e.ramount1
                         && IntPool->liquidity == e.liquidity
@@ -379,7 +404,7 @@ std::pair<V3Event, bool> tempReadEventsFile(std::istream & is) {
         is >> temp;
         is >> temp;
     }
-
+    // is >> temp;
     return std::make_pair(result, false);
 }
 }

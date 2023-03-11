@@ -142,30 +142,38 @@ int main(){
     fin >> fee >> tickSpacing >> maxLiquidityPerTick;
 #ifdef HANDLE_EVENTS
     V3Pool pool(fee, tickSpacing, maxLiquidityPerTick);
-    std::vector<V3Event> data;
-    int tot = 0;
+    // std::vector<V3Event> data;
+    // int tot = 0;
 
-    std::cerr << "Load events" << std::endl;
+    std::cerr << "Load events" << std::endl; int t = 0;
     while(true) {
         auto [even, eof] = v3::tempReadEventsFile(fin);
         if(eof) break;
-        data.push_back(even);
+        // data.push_back(even);
+        std::cerr << (++t) << std::endl;
+        pool.processEvent(even);
     }
     std::cerr << "Load events done." << std::endl;
 
-    double Timer = clock();
-    for(int i = 0; i < data.size(); i++) {
-        pool.processEvent(data[i]);
-        if((i & ((1 << 14) - 1)) == 0) std::cerr << "Handle " << i << std::endl;
-    }
-    Timer = (clock() - Timer) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
-    Timer /= (data.size());
-    std::cerr << "mean of process event time used = " << Timer << " ns\n";
+    // double Timer = clock();
+    // for(int i = 0; i < data.size(); i++) {
+
+    //     std::cerr << "Handle " << i << std::endl;
+    // }
+    // Timer = (clock() - Timer) / CLOCKS_PER_SEC * 1000 * 1000 * 1000;
+    // Timer /= (data.size());
+    // std::cerr << "mean of process event time used = " << Timer << " ns\n";
 #else
-    FILE * fptr = fopen("pool_state", "rb");
+    FILE * fptr = fopen("../pool_state/0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.ip", "rb");
+    if(fptr == NULL) { std::cerr << "QAQ" << std::endl; }
     fread(v3::buffer, 1, sizeof(v3::buffer), fptr);
     V3Pool pool((Pool<false>*)v3::buffer);
+    std::cerr << "read done" << std::endl;
 #endif
+    // auto rawevent = std::string("swap 0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640 0 230000000000000000 1339939048927153956667167281516906 -803725510 230000000000000000 734368184554852844 194725");
+    // std::istringstream irawevent(rawevent);
+    // v3::V3Event testev = v3::rawdata2event(irawevent);
+    // pool.processEvent(testev);
 
 
     Test::Test(pool, int256("17408887710201"), int256("36579912016612"));

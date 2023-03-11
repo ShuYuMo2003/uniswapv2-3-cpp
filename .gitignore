@@ -21,3 +21,6 @@ events/*
 *_events
 *.log
 *state
+log/*
+circle_founded_info.log
+out.txt
