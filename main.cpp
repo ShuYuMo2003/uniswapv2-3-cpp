@@ -61,7 +61,7 @@ std::pair<bool, std::vector<v3::V3Event>> fetchEvents(int BlockNumber) {
 #endif
     }
 
-    eventsColl.delete_many(document{} << "blockNumber" << BlockNumber << finalize);
+   eventsColl.delete_many(document{} << "blockNumber" << BlockNumber << finalize);
 
     return std::make_pair(true, result);
 }
@@ -76,6 +76,7 @@ int main(){
     std::ofstream fout("circle_founded_info.log");
 
     int toHandleBlock = 12369738;
+    // int tt = 0;
     while("💤Shu💝Yu💖Mo💤") {
         auto [exist, events] = fetchEvents(toHandleBlock);
         if(!exist){
@@ -84,6 +85,10 @@ int main(){
             usleep(500 * 1000); // 500 ms.
             continue;
         }
+
+        // tt += events.size();
+        // if(events.size())
+        //     if(tt > 600) break; else std::cerr << "TT  =  " << tt << std::endl;
 
         if(events.size())
             std::cout << "[S]   Fetched " << events.size() << " events from `block " << toHandleBlock << "`." << std::endl;
@@ -109,6 +114,5 @@ int main(){
         }
         toHandleBlock++;
     }
-    // error on 12376424
     return 0;
 }

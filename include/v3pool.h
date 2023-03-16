@@ -53,10 +53,11 @@ struct V3Pool{
     size_t IntPoolSize;
     Pool<true>  * FloatPool;
     size_t FloatPoolSize;
+    bool initialized = false; // ready for handling query from algo.
 
-    std::vector<Lagrange> poly;
+    std::vector<Lagrange> poly[2];
 
-    std::vector<std::pair<unsigned int, double> > sampleTick;
+    std::vector<std::pair<unsigned int, double> > sampleTick[2];
 
     void * mallocPool(size_t size) {
         return malloc(size);
@@ -69,20 +70,31 @@ struct V3Pool{
     }
     void InitSampleTick(){
         const int TickCnt = 26;
+        const double LowerAmountOut = 1e9;
         const double RangeL = -3.9;
         const double RangeR = 0.9;
-
-        const int MinAmount = 1;
-        const int MaxAmount = 5e4;
-        std::vector<double> sampleTmp;
-        sampleTmp.clear();
-        sampleTick.clear();
-        for(double x = RangeL; x <= RangeR; x += (RangeR - RangeL) / TickCnt) {
-            sampleTmp.push_back(exp(x));
+        static std::vector<double> sampleTmp;
+        if(!sampleTmp.size()) {
+            sampleTmp.clear();
+            for(double x = RangeL; x <= RangeR; x += (RangeR - RangeL) / TickCnt) {
+                sampleTmp.push_back(exp(x));
+            }
         }
-        double rate = (MaxAmount - MinAmount) / (*(sampleTmp.end() - 1) - *sampleTmp.begin());
-        for(double now : sampleTmp) {
-            sampleTick.push_back(std::make_pair((now - *sampleTmp.begin()) * rate + MinAmount, 0));
+        double SQ2 = pow(IntPool->slot0.sqrtPriceX96.X96ToDouble(), 2);
+
+        for(int zeroToOne = 0; zeroToOne <= 1; zeroToOne++) {
+            double MinAmount = 1;
+            double MaxAmount = (zeroToOne ? 1 / SQ2 : SQ2) * LowerAmountOut;
+            MaxAmount = std::max(MaxAmount, 1e4);
+            MaxAmount = std::min(MaxAmount, (double)INT_MAX);
+            // std::cerr << "MaxAmout = " << MaxAmount << std::endl;
+
+            sampleTick[zeroToOne].clear();
+
+            double rate = (MaxAmount - MinAmount) / (*(sampleTmp.end() - 1) - *sampleTmp.begin());
+            for(double now : sampleTmp) {
+                sampleTick[zeroToOne].push_back(std::make_pair((now - *sampleTmp.begin()) * rate + MinAmount, 0));
+            }
         }
     }
     void sync() {
@@ -102,7 +114,6 @@ struct V3Pool{
         memcpy(FloatPool, buffer, PoolSize);
     }
     V3Pool(int fee, int tickSpacing, uint256 maxLiquidityPerTick) {
-        InitSampleTick();
         FloatPoolSize = 0; FloatPool = NULL;
         Pool<false> temppool(fee, tickSpacing, maxLiquidityPerTick);
         size_t poolsize = sizeOfPool(&temppool);
@@ -136,61 +147,75 @@ struct V3Pool{
     int256 __querySwapInt(bool zeroToOne, int256 amountIn) {
         static uint160 SQPRL = uint160("4295128740");
         static uint160 SQPRR = uint160("1461446703485210103287273052203988822378723970341");
+        // std::cerr << zeroToOne << " " << amountIn << " " << (zeroToOne ? SQPRL : SQPRR) << std::endl;
         auto ret = swap(IntPool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false);
         // cerr << ""
         return zeroToOne ? -ret.second
                          : -ret.first;
     }
 
-
-   void buildRegressionModel() {
+    int regressionRebuildTime = 0;
+    void buildRegressionModel() {
         // std::cerr << "Build New Regrission" << std::endl;
-        bool zeroToOne = FloatPool->slot0.sqrtPriceX96 > 1;
+        if((regressionRebuildTime++) % 50 == 0) InitSampleTick();
 
-        // std::cout << zeroToOne << std::endl;
+        for(int zeroToOne = 0; zeroToOne <= 1; zeroToOne ++) {
+            // std::cerr << "Testing Build" << std::endl;
 
+            for(auto & now : sampleTick[zeroToOne]) {
+                // std::cerr << "Querying point " << zeroToOne << " " << now.first << std::endl;
+                now.second = __querySwapInt(zeroToOne, now.first).ToDouble();
+            }
 
-        for(auto & now : sampleTick) {
-            now.second = __querySwapInt(zeroToOne, now.first).ToDouble();
+            poly[zeroToOne].clear();
+            Lagrange now;
+            for(int i = 2; i < sampleTick[zeroToOne].size(); i += 2) {
+                now.init(sampleTick[zeroToOne], i - 3, i + 1, i);
+                poly[zeroToOne].push_back(now);
+            }
+
+            // std::cerr << "================== Ticks ==================" << std::endl;
+            // for(auto now : poly) {
+            //     std::cerr << now.Upper << std::endl;
+            // }
+            // std::cerr << "================== Ticks ==================" << std::endl;
         }
-
-        poly.clear();
-        Lagrange now;
-        for(int i = 2; i < sampleTick.size(); i += 2) {
-            now.init(sampleTick, i - 3, i + 1, i);
-            poly.push_back(now);
-        }
-
-        // std::cerr << "================== Ticks ==================" << std::endl;
-        // for(auto now : poly) {
-        //     std::cerr << now.Upper << std::endl;
-        // }
-        // std::cerr << "================== Ticks ==================" << std::endl;
    }
    V3Pool(Pool<false> * o) {
-        InitSampleTick();
         FloatPoolSize = 0; FloatPool = NULL;
         size_t oldPoolSize = sizeOfPool(o);
         IntPoolSize = oldPoolSize << 1;
         IntPool = (Pool<false> *)mallocPool(IntPoolSize);
         memcpy(IntPool, o, oldPoolSize);
         sync();
+        initialized = true;
         buildRegressionModel();
     }
     double query(bool zeroToOne, double amountIn) {
         static FloatType SQPRL = uint160("4295128740").X96ToDouble();
         static FloatType SQPRR = uint160("1461446703485210103287273052203988822378723970341").X96ToDouble();
-        if(zeroToOne == (FloatPool->slot0.sqrtPriceX96 > 1) && amountIn <= (poly.end() - 1)->Upper) {
+        if(!initialized)
+            return -5;
+        if(!poly[zeroToOne].size())
+            return -4;
+        if(amountIn < 10)
+            return -3;
+        // std::cerr << "query amount = " << amountIn << " direction = " << zeroToOne << std::endl;
+        if(amountIn <= (poly[zeroToOne].end() - 1)->Upper) {
             static Lagrange temp;
             temp.Upper = amountIn;
-            auto aim = lower_bound(poly.begin(), poly.end(), temp);
-            assert(aim != poly.end());
+            auto aim = lower_bound(poly[zeroToOne].begin(), poly[zeroToOne].end(), temp);
+            assert(aim != poly[zeroToOne].end());
+            // std::cerr << "Use regression result = " << (*aim)(amountIn) << std::endl;
             return (*aim)(amountIn);
         } else {
+            // std::cerr << "swap(" << zeroToOne << ", " << amountIn << ", " << (zeroToOne ? SQPRL : SQPRR) << ") = ";
             auto result = swap(FloatPool, zeroToOne, amountIn, zeroToOne ? SQPRL : SQPRR, false);
+            // std::cerr << result.first << ", " << result.second << std::endl;
+            // std::cerr << "Use swap" << std::endl;
             if(zeroToOne) {
                 if(fabs(result.first - amountIn) < EPS) return -result.second;
-                else return -1;
+                else return -2;
             } else {
                 if(fabs(result.second - amountIn) < EPS) return -result.first;
                 else return -1;
@@ -214,12 +239,26 @@ struct V3Pool{
             // swap case 1.
             if(!success) {
                 assert(e.amount != 0);
+#ifdef VALIDATE
+                double __SQ = e.zeroToOne ? SQPRL.X96ToDouble() : SQPRR.X96ToDouble(), __am = e.amount.ToDouble();
+                std::pair<double, double> __FloatResult;
+                if(__am > 0) __FloatResult = swap(FloatPool, e.zeroToOne, __am,__SQ, false);
+#endif
                 std::tie(ramount0, ramount1) = swap(IntPool,
                                                     e.zeroToOne,
                                                     e.amount,
                                                     e.zeroToOne ? SQPRL
                                                                 : SQPRR,
                                                     true);
+#ifdef VALIDATE
+                if(__am > 0 || (deviation(__FloatResult.first, ramount0.ToDouble()) < 1e-3 && deviation(__FloatResult.second, ramount1.ToDouble()) < 1e-3));
+                else {
+                    std::cerr << e.address << ": " << e.zeroToOne << " " << e.amount<< std::endl;
+                    std::cerr << __FloatResult.first << " " << ramount0 << std::endl;
+                    std::cerr << __FloatResult.second << " " << ramount1 << std::endl;
+                    assert(false);
+                }
+#endif
                 // std::cerr << "================================== validate info 1 ==================================" << std::endl;
                 // std::cerr << ramount0 << " " << e.ramount0 << std::endl;
                 // std::cerr << ramount1 << " " << e.ramount1 << std::endl;
@@ -238,12 +277,26 @@ struct V3Pool{
             int256 & temp_amount = (e.zeroToOne ? e.ramount1 : e.ramount0);
             if(!success && temp_amount != 0) {
                 memcpy(IntPool, buffer, IntPoolSize);
+#ifdef VALIDATE
+                double __am = temp_amount.ToDouble(), __SQ = e.zeroToOne ? SQPRL.X96ToDouble() : SQPRR.X96ToDouble();
+                std::pair<double, double> __FloatResult;
+                if(__am > 0) swap(FloatPool, e.zeroToOne, __am, __SQ, false);
+#endif
                 std::tie(ramount0, ramount1) = swap(IntPool,
                                                     e.zeroToOne,
                                                     temp_amount,
                                                     e.zeroToOne ? SQPRL
                                                                 : SQPRR,
                                                     true);
+#ifdef VALIDATE
+                if(__am < 0 || (deviation(__FloatResult.first, ramount0.ToDouble()) < 1e-3 && deviation(__FloatResult.second, ramount1.ToDouble()) < 1e-3));
+                else {
+                    std::cerr << e.address << ": " << e.zeroToOne << " " << temp_amount << std::endl;
+                    std::cerr << __FloatResult.first << " " << ramount0 << std::endl;
+                    std::cerr << __FloatResult.second << " " << ramount1 << std::endl;
+                    assert(false);
+                }
+#endif
                 // std::cerr << "================================== validate info 2 ==================================" << std::endl;
                 // std::cerr << ramount0 << " " << e.ramount0 << std::endl;
                 // std::cerr << ramount1 << " " << e.ramount1 << std::endl;
@@ -285,6 +338,7 @@ struct V3Pool{
                 assert(false);
             }
         } else if(type == MINT) {
+            initialized = true;
             std::tie(ramount0, ramount1) = mint(IntPool,
                                                   e.tickLower,
                                                   e.tickUpper,
@@ -311,7 +365,7 @@ struct V3Pool{
 
         sync();
 
-        if(type != INIT) {
+        if(type != INIT && initialized) {
             buildRegressionModel();
         }
     }

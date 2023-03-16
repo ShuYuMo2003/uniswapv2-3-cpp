@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include "v3pool.h"
+#include <algorithm>
 
 namespace graph{
 
@@ -20,9 +21,9 @@ enum PairType { UniswapV2, UniswapV3 };
 struct Edge{
     PairType pair_type;
     v3::V3Pool * pool;
-    int u, v, zeroToOne;
+    uint u, v, zeroToOne;
     double swap(double amountIn) const {
-        if(pair_type == UniswapV3) return pool->query(amountIn, zeroToOne);
+        if(pair_type == UniswapV3) return pool->query(zeroToOne, amountIn);
         if(pair_type == UniswapV2) assert(not "NotImplementedError");     // TODO: v2
     }
 };
@@ -33,6 +34,7 @@ struct GetCircleRes {
     double amount_in, st, revenue;
     std::vector<Edge> edges;
     friend std::ostream& operator<<(std::ostream &os, const GetCircleRes &res) {
+        os << std::setiosflags(std::ios::fixed) << std::setprecision(20);
         os << "========== circle found ==========" << std::endl;
         os << res.amount_in << " " << " " << res.revenue << std::endl;
         for (auto edge : res.edges) {
@@ -74,7 +76,7 @@ std::pair<bool, GetCircleRes> get_circle(int start_point, double init_amount) {
     static std::vector<std::pair<int, int>> st;
     static std::vector<int> vis;
     static int execute_count = 0;
-    if (!execute_count) d.resize(token_num), st.resize(token_num), vis.resize(token_num, 0);
+    d.resize(token_num), st.resize(token_num), vis.resize(token_num, 0);
     execute_count++;
     int t = 0;
     for (int i = 0; i < token_num; ++i) d[i] = vis[i] = 0;
@@ -82,11 +84,14 @@ std::pair<bool, GetCircleRes> get_circle(int start_point, double init_amount) {
     GetCircleRes res; res.st = start_point;
     while (t) {
         auto [u, idx] = st[t - 1];
+        // std::cerr << "\nGot " << u << std::endl;
         bool suc = false;
         for (int i = idx; i < E[u].size(); ++i) {
             const Edge &edge = E[u][i];
             int v = edge.v;
+            // std::cerr << "extend to " << v << std::endl;
             double nv = edge.swap(d[u]);
+            // std::cerr << "Nv = " << nv << " d[v] = " << d[v] << std::endl;
             if (d[v] < nv) {
                 st[t - 1].second = i + 1;
                 if (vis[v] == execute_count) {
@@ -116,19 +121,22 @@ std::pair<bool, GetCircleRes> get_circle(int start_point, double init_amount) {
 }
 
 std::pair<bool, GetCircleRes> FindCircle() {
+    // std::cerr << "Finding Circle" << std::endl;
     GetCircleRes result;
-    static std::string WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
-    if(token2idx.count(WETH_ADDRESS))
-        return std::make_pair(false, result);
+    static std::string WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+    if(!token2idx.count(WETH_ADDRESS))
+        return (std::cerr << "NOT FOUND WETH TOKEN" << std::endl), std::make_pair(false, result);
 
     static double lim_amount = 1099511627776llu;
     double maxRevenue = -1;
     for (double init_amount = 10000; init_amount <= lim_amount; init_amount *= 1.5) {
         int st = token2idx[WETH_ADDRESS];
+        // std::cerr << init_amount << " " << st << std::endl;
         auto [suc, res] = get_circle(st, init_amount);
         if(suc && res.revenue > maxRevenue) {
             maxRevenue = res.revenue;
             result = res;
+            // std::cerr << "FOUND !! " << res.revenue << std::endl;
         }
     }
     return std::make_pair(maxRevenue > 0, result);

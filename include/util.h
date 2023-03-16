@@ -22,7 +22,7 @@
 
 
 
-__attribute__((always_inline)) void require(bool condition, char * msg) {
+__attribute__((always_inline)) void require(bool condition, const char * msg) {
     ASSERT(condition, "msg: " << msg);
 }
 

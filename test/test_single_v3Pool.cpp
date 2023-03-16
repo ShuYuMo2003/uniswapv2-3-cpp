@@ -164,7 +164,7 @@ int main(){
     // Timer /= (data.size());
     // std::cerr << "mean of process event time used = " << Timer << " ns\n";
 #else
-    FILE * fptr = fopen("../pool_state/0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640.ip", "rb");
+    FILE * fptr = fopen("../pool_state/0x7BeA39867e4169DBe237d55C8242a8f2fcDcc387.ip", "rb");
     if(fptr == NULL) { std::cerr << "QAQ" << std::endl; }
     fread(v3::buffer, 1, sizeof(v3::buffer), fptr);
     V3Pool pool((Pool<false>*)v3::buffer);
@@ -176,7 +176,7 @@ int main(){
     // pool.processEvent(testev);
 
 
-    Test::Test(pool, int256("17408887710201"), int256("36579912016612"));
+    Test::Test(pool, int256("78572000000000"), int256("78572000000000"));
 
     SavePool(pool.IntPool, "pool_state");
     return 0;
