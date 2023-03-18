@@ -46,6 +46,14 @@ struct GetCircleRes {
 };
 
 
+void clearEdges() {
+    token2idx.clear();
+    idx2token.clear();
+    E.clear();
+    token_num = 0;
+    v2_pair_num = 0;
+    v3_pool_num = 0;
+}
 
 
 void addV3Pool(std::string token0, std::string token1, v3::V3Pool * pool) {
@@ -86,7 +94,7 @@ std::pair<bool, GetCircleRes> get_circle(int start_point, double init_amount) {
         auto [u, idx] = st[t - 1];
         // std::cerr << "\nGot " << u << std::endl;
         bool suc = false;
-        for (int i = idx; i < E[u].size(); ++i) {
+        for (uint i = idx; i < E[u].size(); ++i) {
             const Edge &edge = E[u][i];
             int v = edge.v;
             // std::cerr << "extend to " << v << std::endl;

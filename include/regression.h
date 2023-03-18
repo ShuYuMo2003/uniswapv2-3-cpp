@@ -29,9 +29,9 @@ struct Lagrange{
     }
     double operator() (const double & _x) const {
         long double ret = 0;
-        for(int i = 0; i < Pts.size(); i++) {
+        for(uint i = 0; i < Pts.size(); i++) {
             long double d = 1;
-            for(int j = 0; j < Pts.size(); j++) {
+            for(uint j = 0; j < Pts.size(); j++) {
                 if(i == j) continue;
                 d *= (_x - Pts[j].first) / (Pts[i].first - Pts[j].first);
             }

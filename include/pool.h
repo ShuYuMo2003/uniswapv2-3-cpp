@@ -80,7 +80,7 @@ size_t CopyPool(Pool<enable_float> * from, Pool<enable_float> * to) {
     char * lowerAddress = fetchLowerAddress(from);
     char * UpperAddress = fetchUpperAddress(from);
 
-    memcpy(to, from, UpperAddress - lowerAddress);
+    memcpy((void *)to, from, UpperAddress - lowerAddress);
     return UpperAddress - lowerAddress;
 }
 

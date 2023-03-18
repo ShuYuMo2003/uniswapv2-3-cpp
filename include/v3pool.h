@@ -9,7 +9,7 @@
 
 
 namespace v3{
-char buffer[1024 * 1024];
+char buffer[5 * 1024 * 1024];
 enum EventType {SWAP, MINT, BURN, INIT, CRET};
 
 double deviation(double a, double b) {
@@ -39,6 +39,7 @@ struct V3Event{
     int tickLower;
     int tickUpper;
     int256 amount;
+    unsigned long long idxHash; // A kind of orderable hash value: BlockNumber + LogIndex. (LogIndex may start with serval leading zero to make the length is exactly 5.)
 
     uint160 sqrtPrice;
     int256 ramount0;
@@ -58,6 +59,10 @@ struct V3Pool{
     std::vector<Lagrange> poly[2];
 
     std::vector<std::pair<unsigned int, double> > sampleTick[2];
+
+    unsigned long long latestIdxHash;
+
+    std::string token[2];
 
     void * mallocPool(size_t size) {
         return malloc(size);
@@ -111,15 +116,15 @@ struct V3Pool{
             }
         }
 
-        memcpy(FloatPool, buffer, PoolSize);
+        memcpy((void * )FloatPool, buffer, PoolSize);
     }
-    V3Pool(int fee, int tickSpacing, uint256 maxLiquidityPerTick) {
-        FloatPoolSize = 0; FloatPool = NULL;
+    V3Pool(int fee, int tickSpacing, uint256 maxLiquidityPerTick, std::string token0, std::string token1, unsigned long long idxhash) {
+        FloatPoolSize = 0; FloatPool = NULL; token[0] = token0; token[1] = token1; latestIdxHash = idxhash;
         Pool<false> temppool(fee, tickSpacing, maxLiquidityPerTick);
         size_t poolsize = sizeOfPool(&temppool);
         IntPoolSize = poolsize << 1;
         IntPool = (Pool<false>*)mallocPool(IntPoolSize);
-        memcpy(IntPool, &temppool, poolsize);
+        memcpy((void *)IntPool, &temppool, poolsize);
         sync();
     }
     ~V3Pool(){
@@ -131,7 +136,7 @@ struct V3Pool{
         if(PoolSize + (sizeof(IntPool->ticks.temp) << 2) > IntPoolSize){
             IntPoolSize <<= 1;
             Pool<false> * newIntPool = (Pool<false> *)mallocPool(IntPoolSize);
-            memcpy(newIntPool, IntPool, PoolSize);
+            memcpy((void *)newIntPool, IntPool, PoolSize);
             freePool(IntPool);
             IntPool = newIntPool;
         }
@@ -169,7 +174,7 @@ struct V3Pool{
 
             poly[zeroToOne].clear();
             Lagrange now;
-            for(int i = 2; i < sampleTick[zeroToOne].size(); i += 2) {
+            for(uint i = 2; i < sampleTick[zeroToOne].size(); i += 2) {
                 now.init(sampleTick[zeroToOne], i - 3, i + 1, i);
                 poly[zeroToOne].push_back(now);
             }
@@ -181,15 +186,15 @@ struct V3Pool{
             // std::cerr << "================== Ticks ==================" << std::endl;
         }
    }
-   V3Pool(Pool<false> * o) {
-        FloatPoolSize = 0; FloatPool = NULL;
+    V3Pool(Pool<false> * o, std::string token0, std::string token1, unsigned long long idxhash, bool __init) {
+        FloatPoolSize = 0; FloatPool = NULL; token[0] = token0; token[1] = token1; latestIdxHash = idxhash;
         size_t oldPoolSize = sizeOfPool(o);
         IntPoolSize = oldPoolSize << 1;
         IntPool = (Pool<false> *)mallocPool(IntPoolSize);
-        memcpy(IntPool, o, oldPoolSize);
+        memcpy((void*)IntPool, o, oldPoolSize);
         sync();
-        initialized = true;
-        buildRegressionModel();
+        initialized = __init;
+        if(initialized) buildRegressionModel();
     }
     double query(bool zeroToOne, double amountIn) {
         static FloatType SQPRL = uint160("4295128740").X96ToDouble();
@@ -223,6 +228,8 @@ struct V3Pool{
         }
     }
     void processEvent(V3Event & e){
+
+        assert(latestIdxHash < e.idxHash);
 
         // std::cerr << "Processing" << std::endl;
         int type = e.type;
@@ -276,7 +283,7 @@ struct V3Pool{
             // swap case 2.
             int256 & temp_amount = (e.zeroToOne ? e.ramount1 : e.ramount0);
             if(!success && temp_amount != 0) {
-                memcpy(IntPool, buffer, IntPoolSize);
+                memcpy((void *)IntPool, buffer, IntPoolSize);
 #ifdef VALIDATE
                 double __am = temp_amount.ToDouble(), __SQ = e.zeroToOne ? SQPRL.X96ToDouble() : SQPRR.X96ToDouble();
                 std::pair<double, double> __FloatResult;
@@ -314,7 +321,7 @@ struct V3Pool{
             // std::cerr << "QAQ" << std::endl;
             // swap case 3.
             if(!success) {
-                memcpy(IntPool, buffer, IntPoolSize);
+                memcpy((void *)IntPool, buffer, IntPoolSize);
                 std::tie(ramount0, ramount1) = swap(IntPool,
                                                     e.zeroToOne,
                                                     e.amount * 10,
@@ -368,6 +375,7 @@ struct V3Pool{
         if(type != INIT && initialized) {
             buildRegressionModel();
         }
+        latestIdxHash = e.idxHash;
     }
 };
 
@@ -415,6 +423,7 @@ V3Event rawdata2event(std::istringstream & is) {
         is >> result.liquidity;
         is >> result.address;
     } else assert(false);
+    is >> result.idxHash;
 
     return result;
 }

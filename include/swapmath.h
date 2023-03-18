@@ -121,7 +121,9 @@ __attribute__((always_inline)) std::tuple<FloatType, FloatType, FloatType> compu
     else
         amountIn = getAmount1Delta(sqrtRatioCurrentX96, sqrtRatioTargetX96, liquidity, RoundUpMode);
 
-    if (condition0 = (amountRemainingLessFee >= amountIn)) sqrtRatioNextX96 = sqrtRatioTargetX96;
+    condition0 = (amountRemainingLessFee >= amountIn);
+
+    if (condition0) sqrtRatioNextX96 = sqrtRatioTargetX96;
     else
         sqrtRatioNextX96 = getNextSqrtPriceFromInput(
             sqrtRatioCurrentX96,

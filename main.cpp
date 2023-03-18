@@ -3,116 +3,107 @@
 #include <cstring>
 #include <ctime>
 #include <unistd.h>
+#include <sw/redis++/redis++.h> // with `-lredis++ -lhiredis -pthread`
 
-#include <cstdint>
-#include <iostream>
-#include <vector>
-#include <bsoncxx/json.hpp>
-#include <mongocxx/client.hpp>
-#include <mongocxx/stdx.hpp>
-#include <mongocxx/uri.hpp>
-#include <mongocxx/instance.hpp>
-#include <bsoncxx/builder/stream/helpers.hpp>
-#include <bsoncxx/builder/stream/document.hpp>
-#include <bsoncxx/builder/stream/array.hpp>
+using namespace sw::redis;
 
+const int LogIndexMask = 1e5;
 
-using bsoncxx::builder::stream::close_array;
-using bsoncxx::builder::stream::close_document;
-using bsoncxx::builder::stream::document;
-using bsoncxx::builder::stream::finalize;
-using bsoncxx::builder::stream::open_array;
-using bsoncxx::builder::stream::open_document;
-
-
+Redis redis = Redis("tcp://127.0.0.1:6379");
 
 std::map<std::string, v3::V3Pool*> v3Pool;
 
-mongocxx::collection eventsColl;
-
-/* 尝试获取 `BlockNumber` 上的 events. 若这一个块还没出现，返回 false. */
-std::pair<bool, std::vector<v3::V3Event>> fetchEvents(int BlockNumber) {
-    std::vector<v3::V3Event> result;
-    auto cnt = eventsColl.count_documents(document{} << "blockNumber" << open_document << "$gte" << BlockNumber << close_document << finalize);
-
-    if(cnt <= 0) {
-        return std::make_pair(false, result);
+unsigned long long recoverStateFromDb(){
+    auto idxs = redis.get("UpdatedToBlockNumber");
+    unsigned long long LastIdx;
+    if(idxs) {
+        LastIdx = std::stoull(*idxs) * LogIndexMask;
+        std::cout << "[M]   Archived data in db have been found. Last updated to " << (*idxs) << std::endl;
+    } else {
+        LastIdx = 12369728ull * LogIndexMask;
+        redis.set("UpdatedToBlockNumber", std::to_string(12369728ull));
     }
 
-    mongocxx::cursor cursor = eventsColl.find(document{} << "blockNumber" << BlockNumber << finalize);
+    // v3Pools
+    std::cout << "Recovering v3 pools .. " << std::endl;
+    v3Pool.clear();
+    graph::clearEdges();
+    std::vector<std::string> v3PoolAddress{};
+    redis.hkeys("v3poolsData", std::back_inserter(v3PoolAddress));
+    for(auto address : v3PoolAddress) {
+        auto rawdata = redis.hget("v3poolsData", address);
+        auto rawinfo = redis.hget("v3poolsInfo", address);
+        assert(rawdata && rawinfo);
+        std::cout << "Got v3 Pool " << address <<" info: " << *rawinfo << std::endl;
 
-    std::vector<std::pair<int, std::string>> temp;
-
-    for (auto doc : cursor) {
-        auto rawData = std::string{doc["handledData"].get_string().value};
-        int index = doc["_id"]["logIndex"].get_int32().value;
-        temp.push_back(std::make_pair(index, rawData));
+        std::istringstream is(*rawinfo);
+        static unsigned long long idx; static std::string token0, token1; static bool __init;
+        is >> idx >> token0 >> token1 >> __init;
+        v3Pool[address] = new v3::V3Pool( (Pool<false> * )(*rawdata).c_str(), token0, token1, idx, __init);
+        std::cout << "Initialized " << address << std::endl;
+        graph::addV3Pool(token0, token1, v3Pool[address]);
     }
+    std::cout << "Recovered " << v3PoolAddress.size() << " v3 Pools" << std::endl;
 
-    sort(temp.begin(), temp.end());
+    // v2pairs
 
-    for(auto [logindex, rawevent] : temp) {
-        std::istringstream istr(rawevent);
-        result.push_back(v3::rawdata2event(istr));
-#ifdef DEBUG
-        FILE * fptr = fopen(("./log/" + (result.end() - 1)->address + ".txt").c_str(), "a+");
-        fprintf(fptr, "%s", rawevent.c_str());
-        fclose(fptr);
-#endif
-    }
-
-   eventsColl.delete_many(document{} << "blockNumber" << BlockNumber << finalize);
-
-    return std::make_pair(true, result);
+    return LastIdx;
 }
 
 int main(){
     initializeTicksPrice();
-    mongocxx::instance instance{};
-    mongocxx::uri uri("mongodb://10.71.99.125:27017/");
-    mongocxx::client client(uri);
-    mongocxx::database db = client["symbc"];
-    eventsColl = db["queue"];
     std::ofstream fout("circle_founded_info.log");
 
-    int toHandleBlock = 12369738;
-    // int tt = 0;
+    redis.del("queue");
+    unsigned long long lastIdxHash = recoverStateFromDb();
+
     while("💤Shu💝Yu💖Mo💤") {
-        auto [exist, events] = fetchEvents(toHandleBlock);
-        if(!exist){
+        auto result = redis.blpop("queue", 1); // 如果 `queue` 为空，阻塞 1 秒.
+        if(!result){
             static int waitedtime = 0;
-            std::cout << "[W]   The `block " << toHandleBlock << "` have not been created yet. waitedtime = " << ++waitedtime << std::endl;
-            usleep(500 * 1000); // 500 ms.
+            std::cout << "[W]   The Next events after " << lastIdxHash << " have not been created yet. waitedtime = " << ++waitedtime << std::endl;
             continue;
         }
+        std::istringstream is(result->second);
+        auto e = v3::rawdata2event(is);
 
-        // tt += events.size();
-        // if(events.size())
-        //     if(tt > 600) break; else std::cerr << "TT  =  " << tt << std::endl;
-
-        if(events.size())
-            std::cout << "[S]   Fetched " << events.size() << " events from `block " << toHandleBlock << "`." << std::endl;
-
-        for(auto e : events){
-            if(e.type == v3::CRET){
-                assert(!v3Pool.count(e.address));
-                v3Pool[e.address] = new v3::V3Pool(e.fee, e.tickspace, e.liquidity);
-                graph::addV3Pool(e.token0, e.token1, v3Pool[e.address]);
-                std::cout << "[S]   New v3 pool " << e.address << " created and been listened. the number of recognised token = " << graph::token_num << " the number of pools = " << graph::v3_pool_num  << "." << std::endl;
-            } else {
-                assert(v3Pool.count(e.address));
-                v3Pool[e.address]->processEvent(e);
+        auto nowBlockNumber = e.idxHash / LogIndexMask;
+        auto lastBlockNumber = lastIdxHash / LogIndexMask;
+        if(lastBlockNumber != nowBlockNumber && lastBlockNumber % 1000 == 0) { // 块数编号是 100 的倍数 且 和上次处理的块号不同，同步至数据库。
+            redis.set("UpdatedToBlockNumber", std::to_string(lastBlockNumber));
+            for(auto [u, v] : v3Pool) {
+                size_t size = CopyPool(v->IntPool, (Pool<false> *)v3::buffer);
+                redis.hset("v3poolsData", u, std::string(v3::buffer, size));
+                redis.hset("v3poolsInfo", u, std::to_string(v->latestIdxHash) + " " + v->token[0] + " " + v->token[1] + " " + std::to_string(v->initialized));
             }
-            v3Pool[e.address]->save("./pool_state/" + e.address + ".ip");
-        }
-        if(events.size()) {
-            auto [found, circle] = graph::FindCircle();
-            if(found) {
-                fout << "After block: " << toHandleBlock << std::endl;
-                fout << circle << std::endl;
+            try {
+                redis.bgsave(); // 后台写入外存
+            } catch(const Error & e){
+                std::cerr << "Background saving may fail, message: " << e.what() << std::endl;
             }
+            std::cerr << "[S]   sync data with db v3 Pool cnt = " << v3Pool.size() << std::endl;
         }
-        toHandleBlock++;
+        lastIdxHash = e.idxHash;
+
+        if(e.type == v3::CRET){
+            assert(!v3Pool.count(e.address));
+            v3Pool[e.address] = new v3::V3Pool( e.fee,
+                                                e.tickspace,
+                                                e.liquidity,
+                                                e.token0,
+                                                e.token1,
+                                                e.idxHash );
+            graph::addV3Pool(e.token0, e.token1, v3Pool[e.address]);
+            std::cout << "[S]   New v3 pool " << e.address << " created and been listened. the number of recognised token = " << graph::token_num << " the number of pools = " << graph::v3_pool_num  << "." << std::endl;
+        } else {
+            assert(v3Pool.count(e.address));
+            v3Pool[e.address]->processEvent(e);
+        }
+        auto [found, circle] = graph::FindCircle();
+        if(found) {
+            fout << "After transaction: " << e.idxHash << std::endl;
+            fout << circle << std::endl;
+        }
     }
     return 0;
 }

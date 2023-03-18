@@ -1,0 +1,1 @@
+clear && g++ main.cpp -o a -Wall -std=c++17 -O3 -lredis++ -lhiredis -pthread -D VALIDATE && ./a
