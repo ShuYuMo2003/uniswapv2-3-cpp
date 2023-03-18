@@ -4,6 +4,7 @@
 #include <vector>
 #include <map>
 #include "v3pool.h"
+#include "v2pair.h"
 #include <algorithm>
 
 namespace graph{
@@ -20,11 +21,11 @@ enum PairType { UniswapV2, UniswapV3 };
 
 struct Edge{
     PairType pair_type;
-    v3::V3Pool * pool;
+    void * aim;
     uint u, v, zeroToOne;
     double swap(double amountIn) const {
-        if(pair_type == UniswapV3) return pool->query(zeroToOne, amountIn);
-        if(pair_type == UniswapV2) assert(not "NotImplementedError");     // TODO: v2
+        if(pair_type == UniswapV3) return ((v3::V3Pool *)aim)->query(zeroToOne, amountIn);
+        if(pair_type == UniswapV2) return ((v2::V2Pair *)aim)->query(zeroToOne, amountIn);
     }
 };
 
@@ -75,8 +76,23 @@ void addV3Pool(std::string token0, std::string token1, v3::V3Pool * pool) {
     v3_pool_num++;
 }
 
-void addV2Pool(std::string token0, std::string token1 /*, v3::V3Pool * pool */) {
-    // TODO: v2
+void addV2Pair(std::string token0, std::string token1, v2::V2Pair * pair) {
+    if(!token2idx.count(token0)) {
+        idx2token[token_num] = token0;
+        token2idx[token0] = token_num++;
+    }
+    if(!token2idx.count(token1)) {
+        idx2token[token_num] = token1;
+        token2idx[token1] = token_num++;
+    }
+
+    auto u = token2idx[token0], v = token2idx[token1];
+    E.resize(token_num);
+
+    E[u].push_back({UniswapV2, pair, u, v, 1});
+    E[v].push_back({UniswapV2, pair, v, u, 0});
+
+    v2_pair_num++;
 }
 
 std::pair<bool, GetCircleRes> get_circle(int start_point, double init_amount) {
