@@ -28,11 +28,13 @@ public:
         latestIdxHash = idx;
     }
     void processEvent(const V2Event & e){
+        assert(latestIdxHash < e.idxHash);
         assert(e.type == SET);
         if(e.type == SET) {
             reserve[0] = e.reserve0;
             reserve[1] = e.reserve1;
         }
+        latestIdxHash = e.idxHash;
     }
     double query(bool zeroToOne, double amountIn) {
         amountIn = amountIn * 997;

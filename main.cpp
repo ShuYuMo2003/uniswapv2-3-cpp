@@ -1,5 +1,6 @@
 #include "include/graph.h"
 #include <unordered_map>
+#include <set>
 #include <cstring>
 #include <ctime>
 #include <unistd.h>
@@ -13,6 +14,7 @@ Redis redis = Redis("tcp://127.0.0.1:6379");
 
 std::unordered_map<std::string, v3::V3Pool*> v3Pool;
 std::unordered_map<std::string, v2::V2Pair*> v2Pair;
+std::set<std::string> lazyUpdatev3Pool, lazyUpdatev2Pair;
 
 unsigned long long recoverStateFromDb(){
     auto idxs = redis.get("UpdatedToBlockNumber");
@@ -76,26 +78,28 @@ void SyncWithDb(unsigned long long lastBlockNumber){
     redis.set("UpdatedToBlockNumber", std::to_string(lastBlockNumber));
 
     // v3Pool
-    for(auto [u, v] : v3Pool) {
+    for(auto u : lazyUpdatev3Pool) {
+        auto v = v3Pool[u];
         size_t size = CopyPool(v->IntPool, (Pool<false> *)v3::buffer);
         redis.hset("v3poolsData", u, std::string(v3::buffer, size));
         redis.hset("v3poolsInfo", u, std::to_string(v->latestIdxHash) + " " + v->token[0] + " " + v->token[1] + " " + std::to_string(v->initialized));
     }
 
     // v2Pair
-    for(auto[u, v] : v2Pair) {
-        static unsigned long long reserve0_L = *(unsigned long long *)(&v->reserve[0]);
-        static unsigned long long reserve1_L = *(unsigned long long *)(&v->reserve[1]);
+    for(auto u : lazyUpdatev2Pair) {
+        auto v = v2Pair[u];
+        unsigned long long reserve0_L = *(unsigned long long *)(&v->reserve[0]);
+        unsigned long long reserve1_L = *(unsigned long long *)(&v->reserve[1]);
         redis.hset("v2pairsData", u, std::to_string(v->latestIdxHash) + " " + v->token[0] + " " + v->token[1] + " " + std::to_string(reserve0_L) + " " + std::to_string(reserve1_L));
     }
 
 
     try {
         redis.bgsave(); // 后台写入外存
-    } catch(const Error & e){
+    } catch(const Error & e) {
         std::cerr << "Background saving may fail, message: " << e.what() << std::endl;
     }
-    std::cerr << "[S]   sync data with db v3 Pool cnt = " << v3Pool.size() << " v2 pair cnt = " << v2Pair.size() << std::endl;
+    std::cerr << "[S]   sync data with db v3 Pool cnt = " << lazyUpdatev3Pool.size() << " v2 pair cnt = " << lazyUpdatev2Pair.size() << std::endl;
 }
 
 int main(){
@@ -121,9 +125,11 @@ int main(){
         if(result->second[0] == '2') {
             vr = 2;
             v2e = v2::rawdata2event(is);
+            lazyUpdatev2Pair.insert(v2e.address);
         } else {
             vr = 3;
             v3e = v3::rawdata2event(is);
+            lazyUpdatev3Pool.insert(v3e.address);
         }
 
 
@@ -132,6 +138,8 @@ int main(){
         if(lastBlockNumber != nowBlockNumber && lastBlockNumber % 1000 == 0) {
             // 块数编号是 100 的倍数 且 和上次处理的块号不同，同步至数据库。
             SyncWithDb(lastBlockNumber);
+            lazyUpdatev2Pair.clear();
+            lazyUpdatev3Pool.clear();
         }
         lastIdxHash = (vr == 2 ? v2e.idxHash : v3e.idxHash);
 
