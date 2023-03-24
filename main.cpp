@@ -226,12 +226,12 @@ int main(){
             }
         }
 
+        auto result = graph::findCircle();
+        if(result) {
+            std::cout << *result << std::endl;
+            fout << *result << std::endl;
+        }
 
-        // auto [found, circle] = graph::FindCircle();
-        // if(found) {
-        //     fout << "After transaction: " << (vr == 2 ? v2e.idxHash : v3e.idxHash) << std::endl;
-        //     fout << circle << std::endl;
-        // }
     }
     return 0;
 }

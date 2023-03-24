@@ -198,7 +198,7 @@ bool dfs(uint now, const EdgeSet & E) {
                     taker.add(group, idx);
                     return true;
                 } else {
-                    return false;
+                    continue;
                 }
             } else {
                 d[v] = nd;
