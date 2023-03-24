@@ -131,26 +131,25 @@ namespace Test{
         printf("Maximum mistake  = %.30lf\n", MAX_DIFF);
     }
 }
-
+#define HANDLE_EVENTS
 
 int main(){
     std::cerr << std::setiosflags(std::ios::fixed) << std::setprecision(20);
     std::cout << std::setiosflags(std::ios::fixed) << std::setprecision(1);
     initializeTicksPrice();
-    std::ifstream fin("../events/test");
+    std::ifstream fin("test_events");
     int fee; int tickSpacing; uint256 maxLiquidityPerTick;
     fin >> fee >> tickSpacing >> maxLiquidityPerTick;
 #ifdef HANDLE_EVENTS
-    V3Pool pool(fee, tickSpacing, maxLiquidityPerTick);
+    V3Pool pool(fee, tickSpacing, maxLiquidityPerTick, std::string("QAQ"), std::string("QWQ"), 0ull);
     // std::vector<V3Event> data;
     // int tot = 0;
 
     std::cerr << "Load events" << std::endl; int t = 0;
     while(true) {
+        std::cerr << (++t) << ' ';
         auto [even, eof] = v3::tempReadEventsFile(fin);
         if(eof) break;
-        // data.push_back(even);
-        std::cerr << (++t) << std::endl;
         pool.processEvent(even);
     }
     std::cerr << "Load events done." << std::endl;

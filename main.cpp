@@ -33,6 +33,9 @@ unsigned long long recoverStateFromDb(){
     std::cout << "Recovering v3 pools .. " << std::endl;
     std::vector<std::string> v3PoolAddress{};
     redis.hkeys("v3poolsData", std::back_inserter(v3PoolAddress));
+
+    // v3PoolAddress.resize(100); // for test only
+
     for(auto address : v3PoolAddress) {
         auto rawdata = redis.hget("v3poolsData", address);
         auto rawinfo = redis.hget("v3poolsInfo", address);
@@ -43,12 +46,15 @@ unsigned long long recoverStateFromDb(){
         is >> idx >> token0 >> token1 >> __init;
         v3Pool[address] = new v3::V3Pool( (Pool<false> * )(*rawdata).c_str(), token0, token1, idx, __init);
         // std::cout << "Initialized " << address << std::endl;
-        graph::addV3Pool(token0, token1, v3Pool[address]);
+        graph::addEdge(token0, token1, graph::UniswapV3, v3Pool[address], address);
     }
 
     std::cout << "Recovering v2 pairs .. " << std::endl;
     std::vector<std::string> v2PairAddress{};
     redis.hkeys("v2pairsData", std::back_inserter(v2PairAddress));
+
+    // v2PairAddress.resize(100); // for test only
+
     for(auto address : v2PairAddress) {
         auto raw = redis.hget("v2pairsData", address);
         assert(raw);
@@ -61,10 +67,8 @@ unsigned long long recoverStateFromDb(){
                                             *(double *)(&reserve0_L),
                                             *(double *)(&reserve1_L),
                                             idx   );
-        graph::addV2Pair(token0, token1, v2Pair[address]);
+        graph::addEdge(token0, token1, graph::UniswapV2, v2Pair[address], address);
     }
-
-
 
 
     std::cout << "Recovered " << v3PoolAddress.size() << " v3 Pools and " << v2PairAddress.size() << " v2 Pairs." << std::endl;
@@ -102,17 +106,59 @@ void SyncWithDb(unsigned long long lastBlockNumber){
     std::cerr << "[S]   sync data with db v3 Pool cnt = " << lazyUpdatev3Pool.size() << " v2 pair cnt = " << lazyUpdatev2Pair.size() << std::endl;
 }
 
+std::ostream & operator<< (std::ostream & os, const graph::CircleInfoTaker_t & info) {
+    double amount = info.amountIn, amount_after;
+    os << " ============================== Found ==============================" << std::endl;
+    os << "initial amount = " << amount << " revenue = " << info.revenue / 1e18 << " eth" << std::endl;
+    std::vector<std::pair<std::string, bool>> temp; temp.resize(0);
+    for(int i = info.plan.size() - 1; i >= 0; i--)
+        temp.push_back(info.plan[i]);
+    for(auto [address, zeroToOne] : temp) {
+        if(v2Pair.count(address)) {
+            amount_after = v2Pair[address]->query(zeroToOne, amount);
+            auto [token0, token1] = zeroToOne ? std::make_pair(v2Pair[address]->token[0], v2Pair[address]->token[1])
+                                              : std::make_pair(v2Pair[address]->token[1], v2Pair[address]->token[0]);
+            os << "v2 " << address << "(" << zeroToOne << ") " << token0 << " " << token1 << " " << amount << " -> " << amount_after << std::endl;
+        } else if(v3Pool.count(address)){
+            amount_after = v3Pool[address]->query(zeroToOne, amount);
+            auto [token0, token1] = zeroToOne ? std::make_pair(v3Pool[address]->token[0], v3Pool[address]->token[1])
+                                              : std::make_pair(v3Pool[address]->token[1], v3Pool[address]->token[0]);
+            os << "v3 " << address << "(" << zeroToOne << ") " << token0 << " " << token1 << " " << amount << " -> " << amount_after << std::endl;
+        } else assert(("Fuck! error!", false));
+        amount = amount_after;
+    }
+    return os;
+}
+
 int main(){
     initializeTicksPrice();
     std::ofstream fout("circle_founded_info.log");
+    srand((unsigned)time(0) ^ 20031006u);
 
     redis.del("queue");
     unsigned long long lastIdxHash = recoverStateFromDb();
 
+    graph::evaluateTokens();
+    do {
+        static int cnt = 0;
+        std::cerr << ++cnt << ":" << std::endl;
+        auto result = graph::findCircle();
+        if(result) {
+            std::cout << *result << std::endl;
+            fout << *result << std::endl;
+        }
+
+    }while(true);
+
+
+    return 0;
+
+    uint handleCnt = 0;
+    int waitedtime = 0;
     while("💤Shu💝Yu💖Mo💤") {
-        auto result = redis.blpop("queue", 1); // 如果 `queue` 为空，阻塞 1 秒.
+        auto result = redis.blpop("queue", 2); // 如果 `queue` 为空，阻塞 2 秒.
         if(!result){
-            static int waitedtime = 0;
+
             std::cout << "[W]   The Next events after " << lastIdxHash << " have not been created yet. waitedtime = " << ++waitedtime << std::endl;
             continue;
         } else {
@@ -125,18 +171,18 @@ int main(){
         if(result->second[0] == '2') {
             vr = 2;
             v2e = v2::rawdata2event(is);
-            lazyUpdatev2Pair.insert(v2e.address);
         } else {
             vr = 3;
             v3e = v3::rawdata2event(is);
-            lazyUpdatev3Pool.insert(v3e.address);
         }
+
+        handleCnt += 1;
 
 
         auto nowBlockNumber = (vr == 2 ? v2e.idxHash : v3e.idxHash) / LogIndexMask;
         auto lastBlockNumber = lastIdxHash / LogIndexMask;
-        if(lastBlockNumber != nowBlockNumber && lastBlockNumber % 1000 == 0) {
-            // 块数编号是 100 的倍数 且 和上次处理的块号不同，同步至数据库。
+        if((lastBlockNumber != nowBlockNumber && lastBlockNumber % 2000 == 0) || handleCnt % 500 == 0) {
+            // 块数编号是 2000 的倍数 且 和上次处理的块号不同
             SyncWithDb(lastBlockNumber);
             lazyUpdatev2Pair.clear();
             lazyUpdatev3Pool.clear();
@@ -144,6 +190,7 @@ int main(){
         lastIdxHash = (vr == 2 ? v2e.idxHash : v3e.idxHash);
 
         if(vr == 3) { // V3 Pool
+            lazyUpdatev3Pool.insert(v3e.address);
             if(v3e.type == v3::CRET){
                 assert(!v3Pool.count(v3e.address));
                 v3Pool[v3e.address] = new v3::V3Pool(   v3e.fee,
@@ -152,13 +199,15 @@ int main(){
                                                         v3e.token0,
                                                         v3e.token1,
                                                         v3e.idxHash   );
-                graph::addV3Pool(v3e.token0, v3e.token1, v3Pool[v3e.address]);
-                std::cout << "[S]   New v3 pool " << v3e.address << " created and been listened. the number of recognised token = " << graph::token_num << " the number of pools = " << graph::v3_pool_num  << "." << std::endl;
+
+                graph::addEdge(v3e.token0, v3e.token1, graph::UniswapV3, v3Pool[v3e.address], v3e.address);
+                std::cout << "[S]   New v3 pool " << v3e.address << " created and been listened. the number of recognised token = " << graph::token_num << std::endl;
             } else {
                 assert(v3Pool.count(v3e.address));
                 v3Pool[v3e.address]->processEvent(v3e);
             }
         } else { // V2 Pool
+            lazyUpdatev2Pair.insert(v2e.address);
             if(v2e.type == v2::CRET) {
                 if(v2Pair.count(v2e.address)) {
                     auto v2p = v2Pair[v2e.address];
@@ -169,13 +218,14 @@ int main(){
                                                             0, 0,
                                                             v2e.idxHash   );
                 }
-                graph::addV2Pair(v2e.token0, v2e.token1, v2Pair[v2e.address]);
-                std::cout << "[S]   New v2 pair " << v2e.address << " created and been listened. the number of recognised token = " << graph::token_num << " the number of pairs = " << graph::v2_pair_num  << "." << std::endl;
+                graph::addEdge(v2e.token0, v2e.token1, graph::UniswapV2, v2Pair[v2e.address], v2e.address);
+                std::cout << "[S]   New v2 pair " << v2e.address << " created and been listened. the number of recognised token = " << graph::token_num << std::endl;
             } else {
                 assert(v2Pair.count(v2e.address));
                 v2Pair[v2e.address]->processEvent(v2e);
             }
         }
+
 
         // auto [found, circle] = graph::FindCircle();
         // if(found) {

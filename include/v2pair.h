@@ -28,15 +28,18 @@ public:
         latestIdxHash = idx;
     }
     void processEvent(const V2Event & e){
-        assert(latestIdxHash < e.idxHash);
+        assert(latestIdxHash <= e.idxHash);
         assert(e.type == SET);
         if(e.type == SET) {
             reserve[0] = e.reserve0;
             reserve[1] = e.reserve1;
+            std::cerr << "Set " << e.address << " to " <<  reserve[0] << "  " <<  reserve[1] << std::endl;
         }
         latestIdxHash = e.idxHash;
     }
     double query(bool zeroToOne, double amountIn) {
+        if(zeroToOne ? amountIn + 10 > reserve[0] : amountIn + 10 > reserve[1])
+            return -1;
         amountIn = amountIn * 997;
         double numerator, denominator;
         if (zeroToOne) {

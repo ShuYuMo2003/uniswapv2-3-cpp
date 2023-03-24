@@ -174,7 +174,7 @@ struct V3Pool{
 
             poly[zeroToOne].clear();
             Lagrange now;
-            for(uint i = 2; i < sampleTick[zeroToOne].size(); i += 2) {
+            for(int i = 2; i < sampleTick[zeroToOne].size(); i += 2) {
                 now.init(sampleTick[zeroToOne], i - 3, i + 1, i);
                 poly[zeroToOne].push_back(now);
             }
@@ -237,6 +237,13 @@ struct V3Pool{
         static int256 ramount0, ramount1;
 
         if(type == SWAP) {
+            if(e.ramount0 == 0 && e.ramount1 == 0) {
+                IntPool->liquidity = e.liquidity;
+                IntPool->slot0.tick = e.tick;
+                IntPool->slot0.sqrtPriceX96 = e.sqrtPrice;
+                goto END;
+            }
+
             static uint160 SQPRL = uint160("4295128740");
             static uint160 SQPRR = uint160("1461446703485210103287273052203988822378723970341");
 
@@ -244,8 +251,7 @@ struct V3Pool{
             memcpy(buffer, IntPool, IntPoolSize);
 
             // swap case 1.
-            if(!success) {
-                assert(e.amount != 0);
+            if(!success && e.amount != 0) {
 #ifdef VALIDATE
                 double __SQ = e.zeroToOne ? SQPRL.X96ToDouble() : SQPRR.X96ToDouble(), __am = e.amount.ToDouble();
                 std::pair<double, double> __FloatResult;
@@ -351,7 +357,8 @@ struct V3Pool{
                                                   e.tickUpper,
                                                   e.amount);
             if(ramount0 == e.ramount0 && ramount1 == e.ramount1); else {
-                std::cout << e.address << " " << e.tickLower << " " << e.tickUpper << e.amount << std::endl;
+                std::cerr << ramount0 << " " << ramount1 << std::endl;
+                std::cout << e.address << " " << e.tickLower << " " << e.tickUpper << " " << e.ramount0 << " " << e.ramount1 << " " << e.idxHash << std::endl;
                 assert(false);
             }
             maintainIntPool();
@@ -361,7 +368,8 @@ struct V3Pool{
                                                   e.tickUpper,
                                                   e.amount);
             if(ramount0 == e.ramount0 && ramount1 == e.ramount1); else {
-                std::cout << e.address << " " << e.tickLower << " " << e.tickUpper << e.amount << std::endl;
+                std::cerr << ramount0 << " " << ramount1 << std::endl;
+                std::cout << e.address << " " << e.tickLower << " " << e.tickUpper << " " << e.ramount0 << " " << e.ramount1 << " " << e.idxHash << std::endl;
                 assert(false);
             }
             maintainIntPool();
@@ -369,12 +377,13 @@ struct V3Pool{
             int nowTick = initialize(IntPool, e.sqrtPrice);
             assert(nowTick == e.tick);
         }
-
+END:
         sync();
 
         if(type != INIT && initialized) {
             buildRegressionModel();
         }
+
         latestIdxHash = e.idxHash;
     }
 };
@@ -436,6 +445,7 @@ std::pair<V3Event, bool> tempReadEventsFile(std::istream & is) {
     V3Event result;
 
     if(is >> opt) ; else return std::make_pair(result, true);
+    std::cerr << "Read Opt = " << opt << std::endl;
 
     is >> result.address;
 
@@ -467,7 +477,7 @@ std::pair<V3Event, bool> tempReadEventsFile(std::istream & is) {
         is >> temp;
         is >> temp;
     }
-    // is >> temp;
+    is >> result.idxHash;
     return std::make_pair(result, false);
 }
 }
