@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <mutex>
 #include <thread>
+#include <random>
 
 const std::string WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 std::set<std::string> blackList{
@@ -279,6 +280,9 @@ CircleInfoTaker_t result;
 
 std::mutex Blocker;
 
+std::random_device rd;
+std::mt19937 g(rd());
+
 void handle() {
     static const double MIN = 1e17;
     static const double MAX = 1e19;
@@ -290,7 +294,7 @@ void handle() {
                 PE[i].push_back(aim);
             }
         }
-        random_shuffle(PE[i].begin(), PE[i].end());
+        shuffle(PE[i].begin(), PE[i].end(), g);
     }
     for(double amount = MIN; amount <= MAX; amount *= 2.2) {
         auto tempResult = core::main(amount, PE);

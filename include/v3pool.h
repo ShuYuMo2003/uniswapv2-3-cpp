@@ -21,7 +21,7 @@ double deviation(double a, double b) {
 void db2int256(int256 & dist, double o) {
     unsigned long long src;
     assert(o >= 0);
-    if(o > ULONG_LONG_MAX)  src = ULONG_LONG_MAX;
+    if(o > std::numeric_limits<unsigned long long>::max())  src = std::numeric_limits<unsigned long long>::max();
     else src = o;
     dist = 0;
 #if TTMATH_BITS_PER_UINT == 32
