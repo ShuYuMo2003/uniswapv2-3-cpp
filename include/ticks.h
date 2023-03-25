@@ -82,10 +82,10 @@ std::pair<_Tick<enable_float> *, bool> nextInitializedTickWithinOneWord(
     int24 tick,
     int24 tickspace,
     bool lte,
-    bool newOperation
+    bool newOperation,
+    _Tick<enable_float>**cacheAddress
 ) {
-    static _Tick<enable_float> * cache = NULL;
-
+    _Tick<enable_float>* cache = *cacheAddress;
     _Tick<enable_float> * beginPtr = (&o->temp) + 1;
     _Tick<enable_float> * endPtr   = beginPtr + o->length;
     if(tick < 0 && tick % tickspace != 0) {

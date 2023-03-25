@@ -11,6 +11,11 @@
 #include <thread>
 
 const std::string WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+std::set<std::string> blackList{
+    "0xd233D1f6FD11640081aBB8db125f722b5dc729dc",
+    "0xA4C9b58D1Ce7EA0d9b351185E0c333683EbDe00b"
+};
+
 namespace graph{
 
 uint token_num = 0;
@@ -262,6 +267,9 @@ void evaluateTokens() {
             for(auto & V : U) available[V] = 1;
         }
     }
+    for(auto & garbage : blackList) {
+        available[token2idx[garbage]] = false;
+    }
 }
 
 namespace mutithread{
@@ -284,23 +292,19 @@ void handle() {
         }
         random_shuffle(PE[i].begin(), PE[i].end());
     }
-    std::cerr << "random done" << std::endl;
-    std::cerr << std::this_thread::get_id() << " handler ready start to run" << std::endl;
-    CircleInfoTaker_t tempResult;
     for(double amount = MIN; amount <= MAX; amount *= 2.2) {
-        auto temp = core::main(amount, PE);
-        if(temp) {
-            tempResult = *temp;
+        auto tempResult = core::main(amount, PE);
+        if(tempResult) {
+            Blocker.lock();
+            if(MaxRevenue < (*tempResult).revenue) {
+                MaxRevenue = (*tempResult).revenue;
+                result = (*tempResult);
+            }
+            Blocker.unlock();
         }
     }
-    std::cerr << std::this_thread::get_id() << " run done. " << std::endl;
 
-    Blocker.lock();
-    if(MaxRevenue < tempResult.revenue) {
-        MaxRevenue = tempResult.revenue;
-        result = tempResult;
-    }
-    Blocker.unlock();
+
 }
 }
 

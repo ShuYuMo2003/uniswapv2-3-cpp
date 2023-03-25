@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <vector>
 #include <climits>
+#include <mutex>
 
 #include "types.h"
 #include "pool.h"
@@ -48,6 +49,9 @@ struct V3Event{
     int fee, tickspace;
 };
 
+const int BLOCKER_CNT_MAX = 1e5 + 100;
+std::mutex EdgeBlocker[BLOCKER_CNT_MAX];
+int block_cnt = 0;
 
 struct V3Pool{
     Pool<false> * IntPool;
@@ -59,6 +63,8 @@ struct V3Pool{
     std::vector<Lagrange> poly[2];
 
     std::vector<std::pair<unsigned int, double> > sampleTick[2];
+
+    uint using_block;
 
     unsigned long long latestIdxHash;
 
@@ -126,6 +132,7 @@ struct V3Pool{
         IntPool = (Pool<false>*)mallocPool(IntPoolSize);
         memcpy((void *)IntPool, &temppool, poolsize);
         sync();
+        using_block = block_cnt++;
     }
     ~V3Pool(){
         freePool(IntPool);
@@ -195,10 +202,14 @@ struct V3Pool{
         sync();
         initialized = __init;
         if(initialized) buildRegressionModel();
+        using_block = block_cnt++;
     }
     double query(bool zeroToOne, double amountIn) {
+        std::lock_guard<std::mutex> lb(EdgeBlocker[using_block]);
         static FloatType SQPRL = uint160("4295128740").X96ToDouble();
         static FloatType SQPRR = uint160("1461446703485210103287273052203988822378723970341").X96ToDouble();
+        if(IntPool->liquidity < 1000)
+            return -6;
         if(!initialized)
             return -5;
         if(!poly[zeroToOne].size())

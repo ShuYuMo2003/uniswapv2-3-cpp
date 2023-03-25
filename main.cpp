@@ -226,11 +226,6 @@ int main(){
             }
         }
 
-        auto result = graph::findCircle();
-        if(result) {
-            std::cout << *result << std::endl;
-            fout << *result << std::endl;
-        }
 
     }
     return 0;

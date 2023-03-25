@@ -183,6 +183,7 @@ std::pair<int256, int256> swap(
     //     "SPL"
     // );
 
+    _Tick<false> * tickCache = NULL;
 
     uint128 liquidityCache = o->liquidity;
 
@@ -206,7 +207,8 @@ std::pair<int256, int256> swap(
             state.tick,
             o->tickSpacing,
             zeroForOne,
-            newOperation
+            newOperation,
+            &tickCache
         );
         newOperation = false;
         // std::cerr << "Nxt tick of " << state.tick << " is " << step.tickNext->id << std::endl;
@@ -336,6 +338,7 @@ std::pair<FloatType, FloatType> swap(
     // continue swapping as long as we haven't used the entire input/output and haven't reached the price limit
     env.lastAmountSpecifiedRemaining = 0;
     env.cnt = 0;
+    _Tick<true> * tickCache = NULL;
 
     while (fabs(env.state.amountSpecifiedRemaining) > EPS
         && env.state.amountSpecifiedRemaining > 0
@@ -362,7 +365,8 @@ std::pair<FloatType, FloatType> swap(
             env.state.tick,
             o->tickSpacing,
             zeroForOne,
-            newOperation
+            newOperation,
+            &tickCache
         );
         newOperation = false;
         // std::cerr << zeroForOne << " Nxt tick of " << state.tick << " is " << step.tickNext->id << std::endl << std::endl;
