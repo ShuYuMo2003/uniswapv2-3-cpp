@@ -83,6 +83,7 @@ void SyncWithDb(unsigned long long lastBlockNumber){
     // v3Pool
     for(auto u : lazyUpdatev3Pool) {
         auto v = v3Pool[u];
+        std::lock_guard<std::mutex> lb(v->block);
         size_t size = CopyPool(v->IntPool, (Pool<false> *)v3::buffer);
         redis.hset("v3poolsData", u, std::string(v3::buffer, size));
         redis.hset("v3poolsInfo", u, std::to_string(v->latestIdxHash) + " " + v->token[0] + " " + v->token[1] + " " + std::to_string(v->initialized));
@@ -91,6 +92,7 @@ void SyncWithDb(unsigned long long lastBlockNumber){
     // v2Pair
     for(auto u : lazyUpdatev2Pair) {
         auto v = v2Pair[u];
+        std::lock_guard<std::mutex> lb(v->block);
         unsigned long long reserve0_L = *(unsigned long long *)(&v->reserve[0]);
         unsigned long long reserve1_L = *(unsigned long long *)(&v->reserve[1]);
         redis.hset("v2pairsData", u, std::to_string(v->latestIdxHash) + " " + v->token[0] + " " + v->token[1] + " " + std::to_string(reserve0_L) + " " + std::to_string(reserve1_L));
@@ -102,13 +104,13 @@ void SyncWithDb(unsigned long long lastBlockNumber){
     } catch(const Error & e) {
         Logger(std::cout, ERROR, "SyncWithDb") << "Background saving may fail, message: " << e.what() << std::endl;
     }
-    Logger(std::cout, INFO, "SyncWithDb") << "[S]   sync data with db v3 Pool cnt = " << lazyUpdatev3Pool.size() << " v2 pair cnt = " << lazyUpdatev2Pair.size() << std::endl;
+    Logger(std::cout, INFO, "SyncWithDb") << "sync data with db v3 Pool cnt = " << lazyUpdatev3Pool.size() << " v2 pair cnt = " << lazyUpdatev2Pair.size() << std::endl;
 }
 
 std::ostream & operator<< (std::ostream & os, const graph::CircleInfoTaker_t & info) {
     double amount = info.amountIn, amount_after;
-    Logger(os, INFO, "Plan Outputer") << " ============================== Found ==============================" << std::endl;
-    Logger(os, INFO, "Plan Outputer") << "initial amount = " << amount << " revenue = " << info.revenue / 1e18 << " eth" << std::endl;
+    os << " ============================== Found ==============================" << std::endl;
+    os << "initial amount = " << amount << " revenue = " << info.revenue / 1e18 << " eth" << std::endl;
     std::vector<std::tuple<std::string, bool, unsigned long long>> temp; temp.resize(0);
     for(int i = info.plan.size() - 1; i >= 0; i--)
         temp.push_back(info.plan[i]);
@@ -117,12 +119,12 @@ std::ostream & operator<< (std::ostream & os, const graph::CircleInfoTaker_t & i
             amount_after = v2Pair[address]->query(zeroToOne, amount);
             auto [token0, token1] = zeroToOne ? std::make_pair(v2Pair[address]->token[0], v2Pair[address]->token[1])
                                               : std::make_pair(v2Pair[address]->token[1], v2Pair[address]->token[0]);
-            Logger(os, INFO, "Plan Outputer") << "v2 " << address << "(" << zeroToOne << ") " << token0 << " " << token1 << " " << amount << " -> " << amount_after << std::endl;
+            os << "v2 " << address << "(" << zeroToOne << " " << version << ") " << token0 << " " << token1 << " " << amount << " -> " << amount_after << std::endl;
         } else if(v3Pool.count(address)){
             amount_after = v3Pool[address]->query(zeroToOne, amount);
             auto [token0, token1] = zeroToOne ? std::make_pair(v3Pool[address]->token[0], v3Pool[address]->token[1])
                                               : std::make_pair(v3Pool[address]->token[1], v3Pool[address]->token[0]);
-            Logger(os, INFO, "Plan Outputer") << "v3 " << address << "(" << zeroToOne << ") " << token0 << " " << token1 << " " << amount << " -> " << amount_after << std::endl;
+            os << "v3 " << address << "(" << zeroToOne << " " << version << ") " << token0 << " " << token1 << " " << amount << " -> " << amount_after << std::endl;
         } else assert(("Fuck! error!", false));
         amount = amount_after;
     }
@@ -140,7 +142,7 @@ int main(){
 
     graph::BuildThreads([&fout](graph::CircleInfoTaker_t now){
         fout << now << std::endl;
-        std::cout << now << std::endl;
+        // std::cout << now << std::endl;
     });
     Logger(std::cout, INFO, "main") << "sub-Threads set up done." << std::endl;
 
@@ -191,7 +193,7 @@ int main(){
                                                         v3e.idxHash   );
 
                 graph::addEdge(v3e.token0, v3e.token1, graph::UniswapV3, v3Pool[v3e.address], v3e.address, true);
-                Logger(std::cout, INFO, "main") << "New v3 pool " << v3e.address << " created and been listened. the number of recognised token = " << graph::token_num << std::endl;
+                Logger(std::cout, WARN, "main") << "New v3 pool " << v3e.address << " created and been listened. the number of recognised token = " << graph::token_num << std::endl;
             } else {
                 assert(v3Pool.count(v3e.address));
                 v3Pool[v3e.address]->processEvent(v3e);
@@ -209,12 +211,14 @@ int main(){
                                                             v2e.idxHash   );
                 }
                 graph::addEdge(v2e.token0, v2e.token1, graph::UniswapV2, v2Pair[v2e.address], v2e.address, true);
-                Logger(std::cout, INFO, "main") << "New v2 pair " << v2e.address << " created and been listened. the number of recognised token = " << graph::token_num << std::endl;
+                Logger(std::cout, WARN, "main") << "New v2 pair " << v2e.address << " created and been listened. the number of recognised token = " << graph::token_num << std::endl;
             } else {
                 assert(v2Pair.count(v2e.address));
                 v2Pair[v2e.address]->processEvent(v2e);
             }
         }
+
+        // Logger(std::cout, INFO, "main") << "Processed events. " << (vr == 3 ? v3e.address : v2e.address) << " have been updated. LastIdx = " << (vr == 3 ? v3e.idxHash : v2e.idxHash) << std::endl;
 
 
     }

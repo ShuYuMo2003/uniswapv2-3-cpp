@@ -1,6 +1,7 @@
 #ifndef headerfilev2pair
 #define headerfilev2pair
 #include "types.h"
+#include <mutex>
 #include "../lib/ttmath/ttmathint.h"
 #include "../lib/ttmath/ttmathuint.h"
 
@@ -21,6 +22,7 @@ class V2Pair{
 public:
     double reserve[2] = {0};
     std::string token[2];
+    std::mutex block;
     unsigned long long latestIdxHash;
     V2Pair(const std::string & token0, const std::string & token1, const double & reserve0, const double & reserve1, const unsigned long long & idx) { // 用于创建 Pair.
         token[0] = token0;
@@ -30,14 +32,16 @@ public:
         latestIdxHash = idx;
     }
     void processEvent(const V2Event & e){
+        block.lock();
         assert(latestIdxHash <= e.idxHash);
         assert(e.type == SET);
         if(e.type == SET) {
+
             reserve[0] = e.reserve0;
             reserve[1] = e.reserve1;
-            std::cerr << "Set " << e.address << " to " <<  reserve[0] << "  " <<  reserve[1] << std::endl;
         }
         latestIdxHash = e.idxHash;
+        block.unlock();
     }
     double query(bool zeroToOne, double amountIn) {
         if(zeroToOne ? amountIn + 10 > reserve[0] : amountIn + 10 > reserve[1])

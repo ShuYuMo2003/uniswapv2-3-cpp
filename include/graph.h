@@ -367,12 +367,12 @@ namespace handlePlans{
                 CircleInfoTaker_t ans = producePlan.top();
                 // while(producePlan.size())
                 producePlan.pop();
-                Logger(std::cout, IMPO, "handlePlans") << "Received a plan. revenue = " << ans.revenue << "eth" << std::endl;
+                Logger(std::cout, IMPO, "handlePlans") << "Received a plan. revenue = " << ans.revenue / (1e18) << "eth" << std::endl;
                 ppBlock.unlock();
                 callback(ans);
             }
 
-            usleep(1/*ms*/ * 1000);
+            usleep(0.5/*ms*/ * 1000);
         }
     }
 }

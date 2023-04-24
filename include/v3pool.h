@@ -238,6 +238,7 @@ struct V3Pool{
         }
     }
     void processEvent(V3Event & e){
+        std::lock_guard<std::mutex> lb(block);
 
         assert(latestIdxHash < e.idxHash);
 
