@@ -272,8 +272,7 @@ int availableVersion;
 void evaluateTokens() {
     avBlock.lock();
     if(!token2idx.count(WETH_ADDRESS)){
-
-        std::cerr << "NOT FOUND WETH TOKEN" << std::endl;
+        Logger(std::cout, ERROR, "evaluateTokens") << "NOT FOUND WETH TOKEN!" << std::endl;
     }
     Tarjan::main();
 
@@ -344,7 +343,7 @@ void handle(int threadId) {
             auto tempResult = core(amount, PE);
             if(tempResult) {
                 ppBlock.lock();
-                Logger(std::cout, IMPO, "SPFA " + std::to_string(threadId)) << "Found Plan: init_amount = " << tempResult->amountIn / (1e18) << "eth revenue = "
+                Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "Found Plan: init_amount = " << tempResult->amountIn / (1e18) << "eth revenue = "
                         << tempResult->revenue / (1e18) << "eth stepCnt = " << tempResult->plan.size() << " queueSize = " << producePlan.size() << std::endl;
                 producePlan.push(*tempResult);
                 ppBlock.unlock();

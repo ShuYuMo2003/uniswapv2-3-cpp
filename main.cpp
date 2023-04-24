@@ -173,13 +173,17 @@ int main(){
 
         auto nowBlockNumber = (vr == 2 ? v2e.idxHash : v3e.idxHash) / LogIndexMask;
         auto lastBlockNumber = lastIdxHash / LogIndexMask;
-        if((lastBlockNumber != nowBlockNumber && lastBlockNumber % 2000 == 0) || handleCnt % 500 == 0) {
+        if((lastBlockNumber != nowBlockNumber && lastBlockNumber % 2000 == 0)) {
             // 块数编号是 2000 的倍数 且 和上次处理的块号不同
             SyncWithDb(lastBlockNumber);
             lazyUpdatev2Pair.clear();
             lazyUpdatev3Pool.clear();
         }
         lastIdxHash = (vr == 2 ? v2e.idxHash : v3e.idxHash);
+
+        // Logger(std::cout, WARN, "debug") << (vr == 3 ? v3Pool[v3e.address]->latestIdxHash : v2Pair[v2e.address]->latestIdxHash) << std::endl;
+
+        // Logger(std::cout, INFO, "main") << "Processing events. " << (vr == 3 ? v3e.address : v2e.address) << " have been updated. LastIdx = " << (vr == 3 ? v3e.idxHash : v2e.idxHash) << std::endl;
 
         if(vr == 3) { // V3 Pool
             lazyUpdatev3Pool.insert(v3e.address);
@@ -218,7 +222,7 @@ int main(){
             }
         }
 
-        // Logger(std::cout, INFO, "main") << "Processed events. " << (vr == 3 ? v3e.address : v2e.address) << " have been updated. LastIdx = " << (vr == 3 ? v3e.idxHash : v2e.idxHash) << std::endl;
+
 
 
     }
