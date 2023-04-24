@@ -6,10 +6,14 @@
 #include <optional>
 #include "v3pool.h"
 #include "v2pair.h"
+#include "logger.h"
 #include <algorithm>
 #include <mutex>
 #include <thread>
 #include <random>
+#include <queue>
+#include <functional>
+#include <unistd.h>
 
 const std::string WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 std::set<std::string> blackList{
@@ -18,6 +22,10 @@ std::set<std::string> blackList{
 };
 
 namespace graph{
+
+typedef unsigned long long SwapVersion;
+
+void evaluateTokens();
 
 uint token_num = 0;
 std::unordered_map<std::string, uint> token2idx;
@@ -41,9 +49,9 @@ struct Edge{
     Edge(const PairType & _pt, void * _aim, const uint & _zeroToOne) :
         pair_type(_pt), aim(_aim), zeroToOne(_zeroToOne)  {  }
 
-    double swap(double amountIn) const {
-        if(pair_type == UniswapV3) return ((v3::V3Pool *)aim)->query(zeroToOne, amountIn);
-        if(pair_type == UniswapV2) return ((v2::V2Pair *)aim)->query(zeroToOne, amountIn);
+    std::pair<double, SwapVersion> swap(double amountIn) const {
+        if(pair_type == UniswapV3) return std::make_pair( ((v3::V3Pool *)aim)->query(zeroToOne, amountIn), ((v3::V3Pool *)aim)->latestIdxHash);
+        if(pair_type == UniswapV2) return std::make_pair( ((v2::V2Pair *)aim)->query(zeroToOne, amountIn), ((v2::V2Pair *)aim)->latestIdxHash);
     }
 };
 
@@ -58,16 +66,19 @@ public:
         Idx2Address[es.size()] = address;
         es.emplace_back(Edge(pair_type, o, zeroToOne));
     }
-    std::optional<std::pair<double, uint>> query(double amount) const {
+    std::optional<std::tuple<double, uint, SwapVersion>> query(double amount) const {
         double result = -1; uint midx = -1;
+        SwapVersion mver;
         for(uint idx = 0; idx < es.size(); idx++){
-            if(result < es[idx].swap(amount)){
-                result = es[idx].swap(amount);
+            auto currentResult = es[idx].swap(amount);
+            if(result < currentResult.first){
+                result = currentResult.first;
                 midx = idx;
+                mver = currentResult.second;
             }
         }
         if(result < 1) return {};
-        else return std::make_pair(result, midx);
+        else return std::make_tuple(result, midx, mver);
     }
 };
 
@@ -82,11 +93,12 @@ struct puuEqual{
     }
 };
 typedef std::vector< std::vector<EdgeGroup*> > EdgeSet;
+
 EdgeSet E;
 std::unordered_map<std::pair<uint, uint> , EdgeGroup *, puuHash, puuEqual> EM;
 
 
-void addEdge(const std::string & token0, const std::string & token1, PairType type, void * o, const std::string & address) {
+void addEdge(const std::string & token0, const std::string & token1, PairType type, void * o, const std::string & address, bool reEvaluate = false) {
     // std::cerr << "Adding " << address << " (" << token0 << ", " << token1 << ") "  << type << " ";
 
     uint u = checkToken(token0);
@@ -105,6 +117,7 @@ void addEdge(const std::string & token0, const std::string & token1, PairType ty
     EM[std::make_pair(u, v)]->add(type, address, 1, o);
     EM[std::make_pair(v, u)]->add(type, address, 0, o);
 
+    if(reEvaluate) evaluateTokens();
 }
 
 void clearEdges() {
@@ -116,14 +129,18 @@ void clearEdges() {
 
 struct CircleInfoTaker_t{
     double amountIn, revenue;
-    std::vector<std::pair<std::string, bool>> plan;
-    void add(EdgeGroup * now, uint idx) {
-        plan.emplace_back(std::make_pair(now->Idx2Address[idx], now->es[idx].zeroToOne));
+    std::vector<std::tuple<std::string, bool, SwapVersion>> plan;
+    void add(EdgeGroup * now, uint idx, SwapVersion vv) {
+        plan.emplace_back(std::make_tuple(now->Idx2Address[idx], now->es[idx].zeroToOne, vv));
     }
     void clear() { plan.clear(); amountIn = 0; revenue = 0; }
+    bool operator < (const CircleInfoTaker_t & rhs) const  { return revenue < rhs.revenue; }
 };
 
-std::vector<bool> available;
+
+std::priority_queue<CircleInfoTaker_t> producePlan; std::mutex ppBlock;
+
+std::vector<bool> available; std::mutex avBlock;
 
 namespace Tarjan{ // Great Tarjan !
 
@@ -171,85 +188,95 @@ void main(){
 }
 }
 
-namespace core{
-const double MINREVENUE = 1e17;
-const uint MAX_CALL_TIME = 1e4;
+class core_t{
+public:
+    const double MINREVENUE = 1e17;
+    const uint MAX_CALL_TIME = 1e4;
 
-std::vector<double> d;
-std::vector<uint> inStack;
-uint InStackMask;
-uint aim;
-CircleInfoTaker_t taker;
-uint call_cnt = 0;
+    std::vector<double> d;
+    std::vector<uint> inStack;
+    uint InStackMask;
+    uint aim;
+    CircleInfoTaker_t taker;
+    uint call_cnt = 0;
 
-bool dfs(uint now, const EdgeSet & E) {
-    // std::cerr << "\nnow at " << now << " d = " << d[now] << std::endl;
-    if(++call_cnt > MAX_CALL_TIME)
-        return false;
-    for(auto group : E[now]) {
-        if(inStack[group->v] == InStackMask || (!available[group->v]))
-            continue;
+    bool dfs(uint now, const EdgeSet & E) {
+        // std::cerr << "\nnow at " << now << " d = " << d[now] << std::endl;
+        if(++call_cnt > MAX_CALL_TIME)
+            return false;
+        for(auto group : E[now]) {
+            if(inStack[group->v] == InStackMask)
+                continue;
 
-        auto result = group->query(d[now]);
-        if(!result)
-            continue;
+            // avBlock.lock();
+            // if(!available[group->v])
+            //     continue;
+            // avBlock.unlock();
 
-        uint v = group->v;
-        auto [nd, idx] = *result;
-        // std::cerr << "now = " << now  << " with " << d[now] << " Transfer to = " << v << " nd = " << nd << std::endl;
-        if(nd > d[v]) {
-            if(v == aim) {
-                if(nd - d[v] > MINREVENUE) {
-                    taker.revenue = nd - d[v];
-                    taker.add(group, idx);
-                    return true;
+            auto result = group->query(d[now]);
+            if(!result)
+                continue;
+
+            uint v = group->v;
+            auto [nd, idx, version] = *result;
+            // std::cerr << "now = " << now  << " with " << d[now] << " Transfer to = " << v << " nd = " << nd << std::endl;
+            if(nd > d[v]) {
+                if(v == aim) {
+                    if(nd - d[v] > MINREVENUE) {
+                        taker.revenue = nd - d[v];
+                        taker.add(group, idx, version);
+                        return true;
+                    } else {
+                        continue;
+                    }
                 } else {
-                    continue;
+                    d[v] = nd;
+                    inStack[v] = InStackMask;
+                    if(dfs(v, E)) {
+                        taker.add(group, idx, version);
+                        return true;
+                    }
+                    inStack[v] = InStackMask - 1;
                 }
-            } else {
-                d[v] = nd;
-                inStack[v] = InStackMask;
-                if(dfs(v, E)) {
-                    taker.add(group, idx);
-                    return true;
-                }
-                inStack[v] = InStackMask - 1;
+                if(call_cnt > MAX_CALL_TIME)
+                    return false;
             }
-            if(call_cnt > MAX_CALL_TIME)
-                return false;
         }
+        return false;
     }
-    return false;
-}
 
-std::optional<CircleInfoTaker_t> main(double amountIn, const EdgeSet & E){
+    std::optional<CircleInfoTaker_t> operator()(double amountIn, const EdgeSet & E) {
 
-    d.resize(token_num);  for(auto & u : d) u = 0;
+        d.resize(token_num);  for(auto & u : d) u = 0;
 
-    static uint execute_cnt = 0;
-    inStack.resize(token_num);
-    InStackMask = ++execute_cnt;
+        static uint execute_cnt = 0;
+        inStack.resize(token_num);
+        InStackMask = ++execute_cnt;
 
-    aim = token2idx[WETH_ADDRESS];
-    d[aim] = amountIn;
-    inStack[aim] = InStackMask - 1;
-    taker.clear();
-    taker.amountIn = amountIn;
+        aim = token2idx[WETH_ADDRESS];
+        d[aim] = amountIn;
+        inStack[aim] = InStackMask - 1;
+        taker.clear();
+        taker.amountIn = amountIn;
 
 
-    call_cnt = 0;
-    bool result = dfs(aim, E);
-    if(result) return taker;
-    else return {};
-}
+        call_cnt = 0;
+        bool result = dfs(aim, E);
+        if(result) return taker;
+        else return {};
+    }
 
-}
+};
 
+int availableVersion;
 void evaluateTokens() {
+    avBlock.lock();
     if(!token2idx.count(WETH_ADDRESS)){
+
         std::cerr << "NOT FOUND WETH TOKEN" << std::endl;
     }
     Tarjan::main();
+
     available.resize(token_num);
     for(int i = 0; i < token_num; i++) available[i] = 0;
     auto startPtr = token2idx[WETH_ADDRESS];
@@ -271,40 +298,57 @@ void evaluateTokens() {
     for(auto & garbage : blackList) {
         available[token2idx[garbage]] = false;
     }
+    Logger(std::cout, INFO, "evaluateTokens") << "re-evaluate Tokens. avaliable tokens = " << available.size() << std::endl;
+    avBlock.unlock();
+
+    ++availableVersion;
 }
 
 namespace mutithread{
 
-double MaxRevenue;
-CircleInfoTaker_t result;
-
-std::mutex Blocker;
-
 std::random_device rd;
 std::mt19937 g(rd());
 
-void handle() {
+void handle(int threadId) {
     static const double MIN = 1e17;
     static const double MAX = 1e19;
 
-    EdgeSet PE; PE.resize(token_num);
-    for(int i = 0; i < token_num; i++) {
-        for(auto aim : E[i]) {
-            if(available[i] && available[aim->v]) {
-                PE[i].push_back(aim);
+    int localAvVersion = -1;
+    EdgeSet PE; core_t core;
+    while("💤Shu💝Yu💖Mo💤") {
+        if(token_num != available.size())
+            evaluateTokens();
+
+        if(localAvVersion != availableVersion) {
+            avBlock.lock();
+            Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "available token list updated detacted. rebuilding graph.." << std::endl;
+            PE.resize(token_num);
+            for(int i = 0; i < token_num; i++) {
+                for(auto aim : E[i]) {
+                    if(available[i] && available[aim->v]) {
+                        PE[i].push_back(aim);
+                    }
+                }
             }
+            localAvVersion = availableVersion;
+            Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "build graph done" << std::endl;
+            avBlock.unlock();
         }
-        shuffle(PE[i].begin(), PE[i].end(), g);
-    }
-    for(double amount = MIN; amount <= MAX; amount *= 2.2) {
-        auto tempResult = core::main(amount, PE);
-        if(tempResult) {
-            Blocker.lock();
-            if(MaxRevenue < (*tempResult).revenue) {
-                MaxRevenue = (*tempResult).revenue;
-                result = (*tempResult);
+
+        for(int i = 0; i < token_num; i++)
+            shuffle(PE[i].begin(), PE[i].end(), g);
+
+
+
+        for(double amount = MIN; amount <= MAX; amount *= 2.2) {
+            auto tempResult = core(amount, PE);
+            if(tempResult) {
+                ppBlock.lock();
+                Logger(std::cout, IMPO, "SPFA " + std::to_string(threadId)) << "Found Plan: init_amount = " << tempResult->amountIn / (1e18) << "eth revenue = "
+                        << tempResult->revenue / (1e18) << "eth stepCnt = " << tempResult->plan.size() << " queueSize = " << producePlan.size() << std::endl;
+                producePlan.push(*tempResult);
+                ppBlock.unlock();
             }
-            Blocker.unlock();
         }
     }
 
@@ -312,29 +356,51 @@ void handle() {
 }
 }
 
+namespace handlePlans{
+    void main(std::function<void (CircleInfoTaker_t)> callback){
+        // listerning producePlan.
+        Logger(std::cout, INFO, "handlePlans") << "Listerning Plans Maker." << std::endl;
+        while("💤Shu💝Yu💖Mo💤") {
+            // Logger(std::cout, INFO, "handlePlans") << "Listerning Plans Maker. producePlan.size() = " << producePlan.size() << std::endl;
+            if(producePlan.size() > 0u) {
+                ppBlock.lock();
+                CircleInfoTaker_t ans = producePlan.top();
+                // while(producePlan.size())
+                producePlan.pop();
+                Logger(std::cout, IMPO, "handlePlans") << "Received a plan. revenue = " << ans.revenue << "eth" << std::endl;
+                ppBlock.unlock();
+                callback(ans);
+            }
 
+            usleep(1/*ms*/ * 1000);
+        }
+    }
+}
 
-std::optional<CircleInfoTaker_t> findCircle(){
-    const int THREAD_COUNT = 1;
-    if(available.size() < token_num)
-        evaluateTokens();
-
-    mutithread::MaxRevenue = -1;
-
-    std::vector<std::thread> threads;
-    for(int i = 0; i < THREAD_COUNT; i++) {
-        std::thread th(mutithread::handle);
+std::vector<std::thread> threads;
+void BuildThreads(std::function<void (CircleInfoTaker_t)> callback) {
+    evaluateTokens();
+    assert(THREAD_COUNT >= 2);
+    for(int i = 0; i < THREAD_COUNT - 1; i++) {
+        std::thread th(mutithread::handle, i);
         threads.push_back(std::move(th));
     }
+    Logger(std::cout, INFO, "BuildThreads") << "SPFA sub-thread built done. SPFA count = " << THREAD_COUNT - 1 << std::endl;
+
+    std::thread planThread(handlePlans::main, callback);
+    threads.push_back(std::move(planThread));
+
+    Logger(std::cout, INFO, "BuildThreads") << "Plan Resolve sub-thread built done." << std::endl;
+
     for(auto & thread : threads) {
-        thread.join();
+        thread.detach();
     }
-    if(mutithread::MaxRevenue > 0) {
-        return mutithread::result;
-    } else {
-        return {};
-    }
+
+    Logger(std::cout, INFO, "BuildThreads") << "All Threads detached." << std::endl;
 }
+
+
+
 }
 
 

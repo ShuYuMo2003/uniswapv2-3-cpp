@@ -299,8 +299,8 @@ std::pair<int256, int256> swap(
 std::pair<FloatType, FloatType> swap(
     Pool<true> *o,
     bool zeroForOne,
-    FloatType & amountSpecified,
-    FloatType & sqrtPriceLimitX96,
+    FloatType amountSpecified,
+    FloatType sqrtPriceLimitX96,
     bool effect)
 {
     bool newOperation = true;

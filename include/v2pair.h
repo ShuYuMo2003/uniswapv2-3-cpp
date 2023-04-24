@@ -1,3 +1,5 @@
+#ifndef headerfilev2pair
+#define headerfilev2pair
 #include "types.h"
 #include "../lib/ttmath/ttmathint.h"
 #include "../lib/ttmath/ttmathuint.h"
@@ -79,3 +81,5 @@ V2Event rawdata2event(std::istringstream & is) {
 
 
 }
+
+#endif

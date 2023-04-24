@@ -85,7 +85,7 @@ std::pair<_Tick<enable_float> *, bool> nextInitializedTickWithinOneWord(
     bool newOperation,
     _Tick<enable_float>**cacheAddress
 ) {
-    _Tick<enable_float>* cache = *cacheAddress;
+    _Tick<enable_float> * cache = *cacheAddress;
     _Tick<enable_float> * beginPtr = (&o->temp) + 1;
     _Tick<enable_float> * endPtr   = beginPtr + o->length;
     if(tick < 0 && tick % tickspace != 0) {
