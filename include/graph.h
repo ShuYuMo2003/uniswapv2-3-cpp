@@ -100,24 +100,33 @@ std::unordered_map<std::pair<uint, uint> , EdgeGroup *, puuHash, puuEqual> EM;
 
 void addEdge(const std::string & token0, const std::string & token1, PairType type, void * o, const std::string & address, bool reEvaluate = false) {
     // std::cerr << "Adding " << address << " (" << token0 << ", " << token1 << ") "  << type << " ";
-
+    static int DelayEvaluate = 0;
     uint u = checkToken(token0);
     uint v = checkToken(token1);
     if(E.size() < token_num)
         E.resize(token_num);
     // std::cerr << u << " " << v << std::endl;
+    bool newActualEdge = false;
     if(!EM.count(std::make_pair(u, v))) {
         EM[std::make_pair(u, v)] = new EdgeGroup(u, v);
         EM[std::make_pair(v, u)] = new EdgeGroup(v, u);
         E[u].push_back(EM[std::make_pair(u, v)]);
         E[v].push_back(EM[std::make_pair(v, u)]);
+        if(reEvaluate)
+            Logger(std::cout, WARN, "addEdge") << "not found edge(" << token0 << " -> " << token1 << "). build new edge." << kkl();
+        newActualEdge = true;
     } else {
 
     }
     EM[std::make_pair(u, v)]->add(type, address, 1, o);
     EM[std::make_pair(v, u)]->add(type, address, 0, o);
 
-    if(reEvaluate) evaluateTokens();
+    if(reEvaluate and newActualEdge) {
+        DelayEvaluate++;
+        if(DelayEvaluate % 10 == 0) // do not re evaluate tokens immedriatly.
+            evaluateTokens();
+    }
+
 }
 
 void clearEdges() {
@@ -191,7 +200,7 @@ void main(){
 class core_t{
 public:
     const double MINREVENUE = 1e17;
-    const uint MAX_CALL_TIME = 1e4;
+    const uint MAX_CALL_TIME = 0.5e4;
 
     std::vector<double> d;
     std::vector<uint> inStack;
@@ -271,8 +280,11 @@ public:
 int availableVersion;
 void evaluateTokens() {
     avBlock.lock();
+    ++availableVersion;
+    // Logger(std::cout, INFO, "evaluateTokens") << "avBlock locked" << kkl(); ////
+    Logger(std::cout, WARN, "evaluateTokens") << "evaluating Tokens" << kkl();
     if(!token2idx.count(WETH_ADDRESS)){
-        Logger(std::cout, ERROR, "evaluateTokens") << "NOT FOUND WETH TOKEN!" << std::endl;
+        Logger(std::cout, ERROR, "evaluateTokens") << "Not found WETH token in graph." << kkl();
     }
     Tarjan::main();
 
@@ -297,32 +309,33 @@ void evaluateTokens() {
     for(auto & garbage : blackList) {
         available[token2idx[garbage]] = false;
     }
-    Logger(std::cout, INFO, "evaluateTokens") << "re-evaluate Tokens. avaliable tokens = " << available.size() << std::endl;
+    int cnt = 0; for(int i = 0; i < static_cast<int>(available.size()); i++) cnt += available[i];
+    Logger(std::cout, INFO, "evaluateTokens") << "re-evaluate Tokens done. avaliable tokens = " << cnt << kkl();
+    // Logger(std::cout, INFO, "evaluateTokens debug") << "avBlock ununlocked" << kkl();////
     avBlock.unlock();
-
-    ++availableVersion;
 }
 
 namespace mutithread{
 
-std::random_device rd;
-std::mt19937 g(rd());
+
 
 void handle(int threadId) {
     static const double MIN = 1e17;
     static const double MAX = 1e19;
 
     int localAvVersion = -1;
-    EdgeSet PE; core_t core;
-    while("💤Shu💝Yu💖Mo💤") {
-        if(token_num != available.size())
-            evaluateTokens();
+    core_t core;
+    EdgeSet PE;
+    std::random_device rd;
+    std::mt19937 g(rd() + threadId * 20031006u);
 
+    while("💤Shu💝Yu💖Mo💤") {
+        avBlock.lock();
         if(localAvVersion != availableVersion) {
-            avBlock.lock();
-            Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "available token list updated detacted. rebuilding graph.." << std::endl;
+            Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "available token list updated detacted. rebuilding graph.." << kkl();
             PE.resize(token_num);
             for(int i = 0; i < token_num; i++) {
+                PE[i].clear();
                 for(auto aim : E[i]) {
                     if(available[i] && available[aim->v]) {
                         PE[i].push_back(aim);
@@ -330,21 +343,33 @@ void handle(int threadId) {
                 }
             }
             localAvVersion = availableVersion;
-            Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "build graph done" << std::endl;
-            avBlock.unlock();
+            Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "build graph done" << kkl();
         }
+        avBlock.unlock();
 
+
+        // Logger(std::cerr, ERROR, "SPFA " + std::to_string(threadId) + " debug") << PE.size() << kkl();////
         for(int i = 0; i < token_num; i++)
             shuffle(PE[i].begin(), PE[i].end(), g);
 
-
+        // int aim = token2idx[WETH_ADDRESS];
+        // for(int i = 0; i < token_num; i++) {
+        //     int id = -1;
+        //     for(int j = 0; j < static_cast<int>(PE[i].size()); j++) {
+        //         if(PE[i][j]->v == aim) {
+        //             id = j;
+        //             break;
+        //         }
+        //     }
+        //     if(id != -1) std::swap(PE[i][0], PE[i][id]);
+        // }
 
         for(double amount = MIN; amount <= MAX; amount *= 2.2) {
             auto tempResult = core(amount, PE);
             if(tempResult) {
                 ppBlock.lock();
                 Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "Found Plan: init_amount = " << tempResult->amountIn / (1e18) << "eth revenue = "
-                        << tempResult->revenue / (1e18) << "eth stepCnt = " << tempResult->plan.size() << " queueSize = " << producePlan.size() << std::endl;
+                        << tempResult->revenue / (1e18) << "eth stepCnt = " << tempResult->plan.size() << " queueSize = " << producePlan.size() << kkl();
                 producePlan.push(*tempResult);
                 ppBlock.unlock();
             }
@@ -358,15 +383,15 @@ void handle(int threadId) {
 namespace handlePlans{
     void main(std::function<void (CircleInfoTaker_t)> callback){
         // listerning producePlan.
-        Logger(std::cout, INFO, "handlePlans") << "Listerning Plans Maker." << std::endl;
+        Logger(std::cout, INFO, "handlePlans") << "Listerning Plans Maker." << kkl();
         while("💤Shu💝Yu💖Mo💤") {
-            // Logger(std::cout, INFO, "handlePlans") << "Listerning Plans Maker. producePlan.size() = " << producePlan.size() << std::endl;
+            // Logger(std::cout, INFO, "handlePlans") << "Listerning Plans Maker. producePlan.size() = " << producePlan.size() << kkl();
             if(producePlan.size() > 0u) {
                 ppBlock.lock();
                 CircleInfoTaker_t ans = producePlan.top();
                 // while(producePlan.size())
                 producePlan.pop();
-                Logger(std::cout, IMPO, "handlePlans") << "Received a plan. revenue = " << ans.revenue / (1e18) << "eth" << std::endl;
+                Logger(std::cout, IMPO, "handlePlans") << "Received a plan. revenue = " << ans.revenue / (1e18) << "eth" << kkl();
                 ppBlock.unlock();
                 callback(ans);
             }
@@ -384,18 +409,18 @@ void BuildThreads(std::function<void (CircleInfoTaker_t)> callback) {
         std::thread th(mutithread::handle, i);
         threads.push_back(std::move(th));
     }
-    Logger(std::cout, INFO, "BuildThreads") << "SPFA sub-thread built done. SPFA count = " << THREAD_COUNT - 1 << std::endl;
+    Logger(std::cout, INFO, "BuildThreads") << "SPFA sub-thread built done. SPFA count = " << THREAD_COUNT - 1 << kkl();
 
     std::thread planThread(handlePlans::main, callback);
     threads.push_back(std::move(planThread));
 
-    Logger(std::cout, INFO, "BuildThreads") << "Plan Resolve sub-thread built done." << std::endl;
+    Logger(std::cout, INFO, "BuildThreads") << "Plan Resolve sub-thread built done." << kkl();
 
     for(auto & thread : threads) {
         thread.detach();
     }
 
-    Logger(std::cout, INFO, "BuildThreads") << "All Threads detached." << std::endl;
+    Logger(std::cout, INFO, "BuildThreads") << "All Threads detached." << kkl();
 }
 
 

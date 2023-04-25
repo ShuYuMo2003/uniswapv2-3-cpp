@@ -22,7 +22,7 @@ unsigned long long recoverStateFromDb(){
     unsigned long long LastIdx;
     if(idxs) {
         LastIdx = std::stoull(*idxs) * LogIndexMask;
-        Logger(std::cout, INFO, "recoverStateFromDb") << "Archived data in db have been found. Last updated to " << (*idxs) << std::endl;
+        Logger(std::cout, INFO, "recoverStateFromDb") << "Archived data in db have been found. Last updated to " << (*idxs) << kkl();
     } else {
         LastIdx = 12369728ull * LogIndexMask;
         redis.set("UpdatedToBlockNumber", std::to_string(12369728ull));
@@ -31,7 +31,7 @@ unsigned long long recoverStateFromDb(){
 
     v3Pool.clear(); v2Pair.clear(); graph::clearEdges();
 
-    Logger(std::cout, INFO, "recoverStateFromDb") << "Recovering v3 pools .. " << std::endl;
+    Logger(std::cout, INFO, "recoverStateFromDb") << "Recovering v3 pools .. " << kkl();
     std::vector<std::string> v3PoolAddress{};
     redis.hkeys("v3poolsData", std::back_inserter(v3PoolAddress));
 
@@ -50,7 +50,7 @@ unsigned long long recoverStateFromDb(){
         graph::addEdge(token0, token1, graph::UniswapV3, v3Pool[address], address);
     }
 
-    Logger(std::cout, INFO, "recoverStateFromDb") << "Recovering v2 pairs .. " << std::endl;
+    Logger(std::cout, INFO, "recoverStateFromDb") << "Recovering v2 pairs .. " << kkl();
     std::vector<std::string> v2PairAddress{};
     redis.hkeys("v2pairsData", std::back_inserter(v2PairAddress));
 
@@ -72,7 +72,7 @@ unsigned long long recoverStateFromDb(){
     }
 
 
-    Logger(std::cout, INFO, "recoverStateFromDb") << "Recovered " << v3PoolAddress.size() << " v3 Pools and " << v2PairAddress.size() << " v2 Pairs." << std::endl;
+    Logger(std::cout, INFO, "recoverStateFromDb") << "Recovered " << v3PoolAddress.size() << " v3 Pools and " << v2PairAddress.size() << " v2 Pairs." << kkl();
 
     return LastIdx;
 }
@@ -102,9 +102,9 @@ void SyncWithDb(unsigned long long lastBlockNumber){
     try {
         redis.bgsave(); // 后台写入外存
     } catch(const Error & e) {
-        Logger(std::cout, ERROR, "SyncWithDb") << "Background saving may fail, message: " << e.what() << std::endl;
+        Logger(std::cout, ERROR, "SyncWithDb") << "Background saving may fail, message: " << e.what() << kkl();
     }
-    Logger(std::cout, INFO, "SyncWithDb") << "sync data with db v3 Pool cnt = " << lazyUpdatev3Pool.size() << " v2 pair cnt = " << lazyUpdatev2Pair.size() << std::endl;
+    Logger(std::cout, INFO, "SyncWithDb") << "sync data with db v3 Pool cnt = " << lazyUpdatev3Pool.size() << " v2 pair cnt = " << lazyUpdatev2Pair.size() << kkl();
 }
 
 std::ostream & operator<< (std::ostream & os, const graph::CircleInfoTaker_t & info) {
@@ -144,14 +144,14 @@ int main(){
         fout << now << std::endl;
         // std::cout << now << std::endl;
     });
-    Logger(std::cout, INFO, "main") << "sub-Threads set up done." << std::endl;
+    Logger(std::cout, INFO, "main") << "sub-Threads set up done." << kkl();
 
     uint handleCnt = 0;
     int waitedtime = 0;
     while("💤Shu💝Yu💖Mo💤") {
         auto result = redis.blpop("queue", 2); // 如果 `queue` 为空，阻塞 2 秒.
         if(!result){
-            Logger(std::cout, INFO, "main") << "The Next events after " << lastIdxHash << " have not been created yet. waitedtime = " << ++waitedtime << std::endl;
+            Logger(std::cout, INFO, "main") << "The Next events after " << lastIdxHash << " have not been created yet. waitedtime = " << ++waitedtime << kkl();
             continue;
         } else {
             // std::cout << "Got Events " << result->second << std::endl;
@@ -181,9 +181,9 @@ int main(){
         }
         lastIdxHash = (vr == 2 ? v2e.idxHash : v3e.idxHash);
 
-        // Logger(std::cout, WARN, "debug") << (vr == 3 ? v3Pool[v3e.address]->latestIdxHash : v2Pair[v2e.address]->latestIdxHash) << std::endl;
+        // Logger(std::cout, WARN, "debug") << (vr == 3 ? v3Pool[v3e.address]->latestIdxHash : v2Pair[v2e.address]->latestIdxHash) << kkl();
 
-        // Logger(std::cout, INFO, "main") << "Processing events. " << (vr == 3 ? v3e.address : v2e.address) << " have been updated. LastIdx = " << (vr == 3 ? v3e.idxHash : v2e.idxHash) << std::endl;
+        // Logger(std::cout, INFO, "debug") << "Processing events. " << (vr == 3 ? v3e.address : v2e.address) << " vr = " << vr << " have been updated. LastIdx = " << (vr == 3 ? v3e.idxHash : v2e.idxHash) << " type = " << (vr == 3 ? v3e.type : v2e.type) << kkl();
 
         if(vr == 3) { // V3 Pool
             lazyUpdatev3Pool.insert(v3e.address);
@@ -197,7 +197,7 @@ int main(){
                                                         v3e.idxHash   );
 
                 graph::addEdge(v3e.token0, v3e.token1, graph::UniswapV3, v3Pool[v3e.address], v3e.address, true);
-                Logger(std::cout, WARN, "main") << "New v3 pool " << v3e.address << " created and been listened. the number of recognised token = " << graph::token_num << std::endl;
+                Logger(std::cout, WARN, "main") << "New v3 pool " << v3e.address << " created and been listened. the number of recognised token = " << graph::token_num << kkl();
             } else {
                 assert(v3Pool.count(v3e.address));
                 v3Pool[v3e.address]->processEvent(v3e);
@@ -215,7 +215,7 @@ int main(){
                                                             v2e.idxHash   );
                 }
                 graph::addEdge(v2e.token0, v2e.token1, graph::UniswapV2, v2Pair[v2e.address], v2e.address, true);
-                Logger(std::cout, WARN, "main") << "New v2 pair " << v2e.address << " created and been listened. the number of recognised token = " << graph::token_num << std::endl;
+                Logger(std::cout, WARN, "main") << "New v2 pair " << v2e.address << " created and been listened. the number of recognised token = " << graph::token_num << kkl();
             } else {
                 assert(v2Pair.count(v2e.address));
                 v2Pair[v2e.address]->processEvent(v2e);

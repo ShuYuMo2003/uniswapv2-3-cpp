@@ -6,6 +6,13 @@
 
 enum Status {INFO, ERROR, WARN, IMPO};
 
+std::mutex LoggerBlock;
+
+char kkl() {
+    LoggerBlock.unlock();
+    return '\n';
+}
+
 struct Logger_t{
     // Green Red Yellow End
     std::string ColorMask[4] = {"\033[32m", "\033[31m", "\033[33m", "\033[31m"};
@@ -13,13 +20,13 @@ struct Logger_t{
     mutable char buffer[1024];
 
     std::ostream & operator()(std::ostream & os, Status type, std::string model) const {
-
+        LoggerBlock.lock();
         os << ColorMask[type];
 
         if(type == INFO)  os << "INFO ";
         if(type == ERROR) os << "ERRO ";
         if(type == WARN)  os << "WARN ";
-        if(type == IMPO)  os << "IMPO ";
+        if(type == IMPO)  os << "!!!! ";
 
         os << END;
 
