@@ -1,5 +1,6 @@
 #include "include/graph.h"
 #include "include/logger.h"
+#include "include/chery.h"
 #include <unordered_map>
 #include <set>
 #include <cstring>
@@ -132,7 +133,7 @@ std::ostream & operator<< (std::ostream & os, const graph::CircleInfoTaker_t & i
 }
 
 int main(){
-    initializeTicksPrice();
+    chery(); initializeTicksPrice();
     std::ofstream fout("circle_founded_info.log");
     srand((unsigned)time(0) ^ 20031006u);
 
