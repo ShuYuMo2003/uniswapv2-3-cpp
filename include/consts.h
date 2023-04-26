@@ -13,6 +13,10 @@ const FloatType MAX_SQRT_RATIO_FLOAT = MAX_SQRT_RATIO.X96ToDouble() + EPS;
 
 const int REGSAMAX = 1000;
 
+const int LogIndexMask = 1e5;
+
+const int SUPPORT_ROLLBACK_BLOCKS = 1500;
+
 // FixedPoint96.sol
 const uint8 RESOLUTION = 96;
 // 2^96

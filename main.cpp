@@ -10,8 +10,6 @@
 
 using namespace sw::redis;
 
-const int LogIndexMask = 1e5;
-
 Redis redis = Redis("tcp://127.0.0.1:6379");
 
 std::unordered_map<std::string, v3::V3Pool*> v3Pool;
@@ -46,7 +44,7 @@ unsigned long long recoverStateFromDb(){
         std::istringstream is(*rawinfo);
         static unsigned long long idx; static std::string token0, token1; static bool __init;
         is >> idx >> token0 >> token1 >> __init;
-        v3Pool[address] = new v3::V3Pool( (Pool<false> * )(*rawdata).c_str(), token0, token1, idx, __init);
+        v3Pool[address] = new v3::V3Pool( (Pool<false> * )(*rawdata).c_str(), token0, token1, idx, __init, address);
         // std::cout << "Initialized " << address << std::endl;
         graph::addEdge(token0, token1, graph::UniswapV3, v3Pool[address], address);
     }
@@ -68,7 +66,8 @@ unsigned long long recoverStateFromDb(){
                                             token1,
                                             *(double *)(&reserve0_L),
                                             *(double *)(&reserve1_L),
-                                            idx   );
+                                            idx,
+                                            address   );
         graph::addEdge(token0, token1, graph::UniswapV2, v2Pair[address], address);
     }
 
@@ -106,6 +105,8 @@ void SyncWithDb(unsigned long long lastBlockNumber){
         Logger(std::cout, ERROR, "SyncWithDb") << "Background saving may fail, message: " << e.what() << kkl();
     }
     Logger(std::cout, INFO, "SyncWithDb") << "sync data with db v3 Pool cnt = " << lazyUpdatev3Pool.size() << " v2 pair cnt = " << lazyUpdatev2Pair.size() << kkl();
+    lazyUpdatev2Pair.clear();
+    lazyUpdatev3Pool.clear();
 }
 
 std::ostream & operator<< (std::ostream & os, const graph::CircleInfoTaker_t & info) {
@@ -132,13 +133,15 @@ std::ostream & operator<< (std::ostream & os, const graph::CircleInfoTaker_t & i
     return os;
 }
 
+std::deque<std::tuple<IndexType, graph::PairType, std::string>> EventsLog;
+
 int main(){
     chery(); initializeTicksPrice();
     std::ofstream fout("circle_founded_info.log");
     srand((unsigned)time(0) ^ 20031006u);
 
     redis.del("queue");
-    unsigned long long lastIdxHash = recoverStateFromDb();
+    IndexType lastIdxHash = recoverStateFromDb();
 
 
     graph::BuildThreads([&fout](graph::CircleInfoTaker_t now){
@@ -149,6 +152,8 @@ int main(){
 
     uint handleCnt = 0;
     int waitedtime = 0;
+
+    int rollbackToBesync = false;
     while("💤Shu💝Yu💖Mo💤") {
         auto result = redis.blpop("queue", 2); // 如果 `queue` 为空，阻塞 2 秒.
         if(!result){
@@ -157,6 +162,7 @@ int main(){
         } else {
             // std::cout << "Got Events " << result->second << std::endl;
         }
+
         std::istringstream is(result->second);
         static v2::V2Event v2e;
         static v3::V3Event v3e;
@@ -171,16 +177,52 @@ int main(){
 
         handleCnt += 1;
 
+        IndexType nowIndex = (vr == 2 ? v2e.idxHash : v3e.idxHash);
 
-        auto nowBlockNumber = (vr == 2 ? v2e.idxHash : v3e.idxHash) / LogIndexMask;
-        auto lastBlockNumber = lastIdxHash / LogIndexMask;
-        if((lastBlockNumber != nowBlockNumber && lastBlockNumber % 2000 == 0)) {
-            // 块数编号是 2000 的倍数 且 和上次处理的块号不同
-            SyncWithDb(lastBlockNumber);
-            lazyUpdatev2Pair.clear();
-            lazyUpdatev3Pool.clear();
+        if(nowIndex <= lastIdxHash) { // rollback.回溯到 恰好执行完 nowIndex 的状态
+            IndexType limit = nowIndex - 1;
+
+            Logger(std::cout, INFO, "main") << "rollback command detacted! now at " << lastIdxHash << " rollbacking to " << limit << kkl();
+
+            lastIdxHash = limit;
+
+            while(!EventsLog.empty() and std::get<0>(EventsLog.back()) > limit) {
+                auto [logidx, type, address] = EventsLog.back();
+                // Logger(std::cout, WARN, "address") << address << kkl();
+                if(type == graph::UniswapV2) {
+                    v2Pair[address]->rollbackTo(limit);
+                    lazyUpdatev2Pair.insert(address);
+                } else {
+                    v3Pool[address]->rollbackTo(limit);
+                    lazyUpdatev3Pool.insert(address);
+                }
+                EventsLog.pop_back();
+            }
+
+            rollbackToBesync = true;
+
+            // SyncWithDb(lastIdxHash / LogIndexMask);
         }
-        lastIdxHash = (vr == 2 ? v2e.idxHash : v3e.idxHash);
+
+
+        auto nowBlockNumber = nowIndex / LogIndexMask;
+        auto lastBlockNumber = lastIdxHash / LogIndexMask;
+        if((lastBlockNumber != nowBlockNumber && (rollbackToBesync || lastBlockNumber % 2000 == 0))) {
+            if(rollbackToBesync)
+                Logger(std::cout, WARN, "Force Sync") << "because of rollback, force sync with database." << kkl();
+            // 块数编号是 10 的倍数 且 和上次处理的块号不同
+            SyncWithDb(lastBlockNumber); // for test only.
+            rollbackToBesync = false;
+        }
+        lastIdxHash = nowIndex;
+
+
+        while( !EventsLog.empty()
+            and  lastIdxHash / LogIndexMask - std::get<0>(EventsLog.front()) / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS)
+            EventsLog.pop_front(); // 修剪 EventsLog
+
+        EventsLog.push_back(vr == 2 ? std::make_tuple(lastIdxHash, graph::UniswapV2, v2e.address)
+                                    : std::make_tuple(lastIdxHash, graph::UniswapV3, v3e.address));
 
         // Logger(std::cout, WARN, "debug") << (vr == 3 ? v3Pool[v3e.address]->latestIdxHash : v2Pair[v2e.address]->latestIdxHash) << kkl();
 
@@ -189,16 +231,19 @@ int main(){
         if(vr == 3) { // V3 Pool
             lazyUpdatev3Pool.insert(v3e.address);
             if(v3e.type == v3::CRET){
-                assert(!v3Pool.count(v3e.address));
+                if(v3Pool.count(v3e.address) && v3Pool[v3e.address] != NULL) {
+                    free(v3Pool[v3e.address]);
+                }
                 v3Pool[v3e.address] = new v3::V3Pool(   v3e.fee,
                                                         v3e.tickspace,
                                                         v3e.liquidity,
                                                         v3e.token0,
                                                         v3e.token1,
-                                                        v3e.idxHash   );
+                                                        v3e.idxHash,
+                                                        v3e.address   );
 
                 graph::addEdge(v3e.token0, v3e.token1, graph::UniswapV3, v3Pool[v3e.address], v3e.address, true);
-                Logger(std::cout, WARN, "main") << "New v3 pool " << v3e.address << " created and been listened. the number of recognised token = " << graph::token_num << kkl();
+                Logger(std::cout, INFO, "main") << "New v3 pool " << v3e.address << " created and been listened. the number of recognised token = " << graph::token_num << kkl();
             } else {
                 assert(v3Pool.count(v3e.address));
                 v3Pool[v3e.address]->processEvent(v3e);
@@ -206,25 +251,24 @@ int main(){
         } else { // V2 Pool
             lazyUpdatev2Pair.insert(v2e.address);
             if(v2e.type == v2::CRET) {
-                if(v2Pair.count(v2e.address)) {
-                    auto v2p = v2Pair[v2e.address];
-                    assert(v2p->token[0] == v2e.token0 && v2p->token[1] == v2e.token1);
-                } else {
-                    v2Pair[v2e.address] = new v2::V2Pair(   v2e.token0,
-                                                            v2e.token1,
-                                                            0, 0,
-                                                            v2e.idxHash   );
+                if(v2Pair.count(v2e.address) && v2Pair[v2e.address] != NULL) {
+                    free(v2Pair[v2e.address]);
                 }
+                v2Pair[v2e.address] = new v2::V2Pair(   v2e.token0,
+                                                        v2e.token1,
+                                                        0, 0,
+                                                        v2e.idxHash,
+                                                        v2e.address    );
+
                 graph::addEdge(v2e.token0, v2e.token1, graph::UniswapV2, v2Pair[v2e.address], v2e.address, true);
-                Logger(std::cout, WARN, "main") << "New v2 pair " << v2e.address << " created and been listened. the number of recognised token = " << graph::token_num << kkl();
+                Logger(std::cout, INFO, "main") << "New v2 pair " << v2e.address << " created and been listened. the number of recognised token = " << graph::token_num << kkl();
             } else {
                 assert(v2Pair.count(v2e.address));
                 v2Pair[v2e.address]->processEvent(v2e);
             }
+
+
         }
-
-
-
 
     }
     return 0;

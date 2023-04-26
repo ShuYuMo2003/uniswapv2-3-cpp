@@ -4,10 +4,12 @@
 #include <vector>
 #include <climits>
 #include <mutex>
+#include <deque>
 
 #include "types.h"
 #include "pool.h"
 #include "regression.h"
+#include "logger.h"
 
 
 
@@ -56,6 +58,15 @@ struct V3Event{
 // int block_cnt = 0;
 
 struct V3Pool{
+    struct PoolStatus{
+         // 在这个操作之前池子的状态。
+        IndexType timestamp;
+        void * buffer;
+        bool initialized;
+        PoolStatus(){ buffer = NULL; }
+    };
+    std::deque<std::pair<IndexType, PoolStatus>> history; // (idxHash, status) 在执行第 idxHash 个 event 之前池子状态为 status
+    std::string poolAddress;
     Pool<false> * IntPool;
     size_t IntPoolSize;
     Pool<true>  * FloatPool;
@@ -67,7 +78,7 @@ struct V3Pool{
     std::vector<std::pair<unsigned int, double> > sampleTick[2];
 
     std::mutex block;
-    unsigned long long latestIdxHash;
+    IndexType latestIdxHash;
 
     std::string token[2];
 
@@ -125,8 +136,9 @@ struct V3Pool{
 
         memcpy((void * )FloatPool, buffer, PoolSize);
     }
-    V3Pool(int fee, int tickSpacing, uint256 maxLiquidityPerTick, std::string token0, std::string token1, unsigned long long idxhash) {
+    V3Pool(int fee, int tickSpacing, uint256 maxLiquidityPerTick, std::string token0, std::string token1, unsigned long long idxhash, std::string add) {
         FloatPoolSize = 0; FloatPool = NULL; token[0] = token0; token[1] = token1; latestIdxHash = idxhash;
+        poolAddress = add;
         Pool<false> temppool(fee, tickSpacing, maxLiquidityPerTick);
         size_t poolsize = sizeOfPool(&temppool);
         IntPoolSize = poolsize << 1;
@@ -193,7 +205,7 @@ struct V3Pool{
             // std::cerr << "================== Ticks ==================" << std::endl;
         }
    }
-    V3Pool(Pool<false> * o, std::string token0, std::string token1, unsigned long long idxhash, bool __init) {
+    V3Pool(Pool<false> * o, std::string token0, std::string token1, unsigned long long idxhash, bool __init, std::string addd) {
         FloatPoolSize = 0; FloatPool = NULL; token[0] = token0; token[1] = token1; latestIdxHash = idxhash;
         size_t oldPoolSize = sizeOfPool(o);
         IntPoolSize = oldPoolSize << 1;
@@ -202,6 +214,7 @@ struct V3Pool{
         sync();
         initialized = __init;
         if(initialized) buildRegressionModel();
+        poolAddress = addd;
     }
     double query(bool zeroToOne, double amountIn) {
         std::lock_guard<std::mutex> lb(block);
@@ -237,10 +250,67 @@ struct V3Pool{
             }
         }
     }
+
+    void rollbackTo(IndexType limit) { // 恰好执行完第 limit 个 event 的状态。
+        if(latestIdxHash <= limit) return ;
+        std::lock_guard<std::mutex> lb(block);
+        // Logger(std::cout, ERROR, "rollbackTo") << "now at " << latestIdxHash << " rollback to " << limit << kkl(); ////
+        PoolStatus lastStatus;
+        while(!history.empty()) {
+            if(history.back().first <= limit) {
+                break;
+            } else {
+                if(lastStatus.buffer != NULL)
+                    free(lastStatus.buffer);
+                lastStatus = history.back().second;
+                history.pop_back();
+            }
+        }
+        if(lastStatus.buffer != NULL) {
+            // Logger(std::cout, INFO, "rollbackto") << "Found backup idx = " << lastStatus.timestamp << kkl(); ////
+            if(FloatPool != NULL) free(FloatPool);
+            if(IntPool != NULL)  free(IntPool);
+
+            FloatPoolSize = 0; FloatPool = NULL;
+            latestIdxHash = lastStatus.timestamp;
+
+            size_t oldPoolSize = sizeOfPool((Pool<false> *)lastStatus.buffer);
+            IntPoolSize = oldPoolSize << 1;
+            IntPool = (Pool<false> *)mallocPool(IntPoolSize);
+            memcpy((void*)IntPool, lastStatus.buffer, oldPoolSize);
+            sync();
+            initialized = lastStatus.initialized;
+            if(initialized) buildRegressionModel();
+
+            free(lastStatus.buffer);
+        } else { // 认为创建的 events 被撤回。 标记 Pool 为不可用。
+            Logger(std::cout, WARN, "rollbackto") << "Not found backup of " << poolAddress << "(v3 pool), treat as deleting pool." << kkl();
+            initialized = false;
+            latestIdxHash = 0;
+        }
+    }
+
     void processEvent(V3Event & e){
         std::lock_guard<std::mutex> lb(block);
 
-        assert(latestIdxHash < e.idxHash);
+        if(latestIdxHash >= e.idxHash) {
+            Logger(std::cout, WARN, "processEvent") << "detached early event (idx=" << e.idxHash << ", nowIdx=" << latestIdxHash << " ignored. "<< poolAddress << "(v3 pool)" << kkl();
+            assert(false);
+            return ;
+        }
+
+        while(   !history.empty()
+              && e.idxHash / LogIndexMask - history.front().first / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS )
+            history.pop_front();
+
+
+        PoolStatus nowDataStatus;
+        nowDataStatus.initialized = initialized;
+        nowDataStatus.timestamp   = latestIdxHash;
+        nowDataStatus.buffer      = malloc(IntPoolSize);
+        CopyPool(IntPool, (Pool<false> * )nowDataStatus.buffer);
+        history.push_back(std::make_pair(e.idxHash, nowDataStatus));
+
 
         // std::cerr << "Processing" << std::endl;
         int type = e.type;

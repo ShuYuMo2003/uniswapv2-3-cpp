@@ -29,6 +29,8 @@ typedef uint uint32;
 typedef int int16;
 typedef int int24;
 
+typedef unsigned long long IndexType;
+
 #if TTMATH_BITS_PER_UINT == 32
     typedef ttmath::UInt<2>   uint64;
     typedef ttmath::UInt<4>   uint128;

@@ -76,7 +76,7 @@ size_t sizeOfPool(Pool<enable_float> * o) {
 template<bool enable_float>
 size_t CopyPool(Pool<enable_float> * from, Pool<enable_float> * to) {
     // assert(from->poolType == enable_float && to->poolType == enable_float);
-
+    if(from == NULL) return 0;
     char * lowerAddress = fetchLowerAddress(from);
     char * UpperAddress = fetchUpperAddress(from);
 

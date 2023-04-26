@@ -94,11 +94,13 @@ struct puuEqual{
 };
 typedef std::vector< std::vector<EdgeGroup*> > EdgeSet;
 
-EdgeSet E;
+EdgeSet E; std::mutex oGraphBlock;
 std::unordered_map<std::pair<uint, uint> , EdgeGroup *, puuHash, puuEqual> EM;
 
+std::vector<bool> available;
 
 void addEdge(const std::string & token0, const std::string & token1, PairType type, void * o, const std::string & address, bool reEvaluate = false) {
+    oGraphBlock.lock();
     // std::cerr << "Adding " << address << " (" << token0 << ", " << token1 << ") "  << type << " ";
     static int DelayEvaluate = 0;
     uint u = checkToken(token0);
@@ -113,7 +115,7 @@ void addEdge(const std::string & token0, const std::string & token1, PairType ty
         E[u].push_back(EM[std::make_pair(u, v)]);
         E[v].push_back(EM[std::make_pair(v, u)]);
         if(reEvaluate)
-            Logger(std::cout, WARN, "addEdge") << "not found edge(" << token0 << " -> " << token1 << "). build new edge." << kkl();
+            Logger(std::cout, INFO, "addEdge") << "not found edge(" << token0 << " -> " << token1 << "). build new edge." << kkl();
         newActualEdge = true;
     } else {
 
@@ -125,8 +127,10 @@ void addEdge(const std::string & token0, const std::string & token1, PairType ty
         DelayEvaluate++;
         if(DelayEvaluate % 10 == 0) // do not re evaluate tokens immedriatly.
             evaluateTokens();
+        else
+            available.resize(token_num);
     }
-
+    oGraphBlock.unlock();
 }
 
 void clearEdges() {
@@ -149,7 +153,6 @@ struct CircleInfoTaker_t{
 
 std::priority_queue<CircleInfoTaker_t> producePlan; std::mutex ppBlock;
 
-std::vector<bool> available; std::mutex avBlock;
 
 namespace Tarjan{ // Great Tarjan !
 
@@ -217,10 +220,6 @@ public:
             if(inStack[group->v] == InStackMask)
                 continue;
 
-            // avBlock.lock();
-            // if(!available[group->v])
-            //     continue;
-            // avBlock.unlock();
 
             auto result = group->query(d[now]);
             if(!result)
@@ -279,10 +278,9 @@ public:
 
 int availableVersion;
 void evaluateTokens() {
-    avBlock.lock();
-    ++availableVersion;
+
     // Logger(std::cout, INFO, "evaluateTokens") << "avBlock locked" << kkl(); ////
-    Logger(std::cout, WARN, "evaluateTokens") << "evaluating Tokens" << kkl();
+    Logger(std::cout, INFO, "evaluateTokens") << "evaluating Tokens" << kkl();
     if(!token2idx.count(WETH_ADDRESS)){
         Logger(std::cout, ERROR, "evaluateTokens") << "Not found WETH token in graph." << kkl();
     }
@@ -312,7 +310,7 @@ void evaluateTokens() {
     int cnt = 0; for(int i = 0; i < static_cast<int>(available.size()); i++) cnt += available[i];
     Logger(std::cout, INFO, "evaluateTokens") << "re-evaluate Tokens done. avaliable tokens = " << cnt << kkl();
     // Logger(std::cout, INFO, "evaluateTokens debug") << "avBlock ununlocked" << kkl();////
-    avBlock.unlock();
+    ++availableVersion;
 }
 
 namespace mutithread{
@@ -330,13 +328,13 @@ void handle(int threadId) {
     std::mt19937 g(rd() + threadId * 20031006u);
 
     while("💤Shu💝Yu💖Mo💤") {
-        avBlock.lock();
         if(localAvVersion != availableVersion) {
+            oGraphBlock.lock();
             Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "available token list updated detacted. rebuilding graph.." << kkl();
             PE.resize(token_num);
             for(int i = 0; i < token_num; i++) {
                 PE[i].clear();
-                for(auto aim : E[i]) {
+                for(auto & aim : E[i]) {
                     if(available[i] && available[aim->v]) {
                         PE[i].push_back(aim);
                     }
@@ -344,12 +342,12 @@ void handle(int threadId) {
             }
             localAvVersion = availableVersion;
             Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "build graph done" << kkl();
+            oGraphBlock.unlock();
         }
-        avBlock.unlock();
 
 
         // Logger(std::cerr, ERROR, "SPFA " + std::to_string(threadId) + " debug") << PE.size() << kkl();////
-        for(int i = 0; i < token_num; i++)
+        for(int i = 0; i < static_cast<int>(PE.size()); i++)
             shuffle(PE[i].begin(), PE[i].end(), g);
 
         // int aim = token2idx[WETH_ADDRESS];
@@ -368,8 +366,8 @@ void handle(int threadId) {
             auto tempResult = core(amount, PE);
             if(tempResult) {
                 ppBlock.lock();
-                Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "Found Plan: init_amount = " << tempResult->amountIn / (1e18) << "eth revenue = "
-                        << tempResult->revenue / (1e18) << "eth stepCnt = " << tempResult->plan.size() << " queueSize = " << producePlan.size() << kkl();
+                // Logger(std::cout, INFO, "SPFA " + std::to_string(threadId)) << "Found Plan: init_amount = " << tempResult->amountIn / (1e18) << "eth revenue = "
+                //         << tempResult->revenue / (1e18) << "eth stepCnt = " << tempResult->plan.size() << " queueSize = " << producePlan.size() << kkl();
                 producePlan.push(*tempResult);
                 ppBlock.unlock();
             }
@@ -391,7 +389,7 @@ namespace handlePlans{
                 CircleInfoTaker_t ans = producePlan.top();
                 // while(producePlan.size())
                 producePlan.pop();
-                Logger(std::cout, IMPO, "handlePlans") << "Received a plan. revenue = " << ans.revenue / (1e18) << "eth" << kkl();
+                // Logger(std::cout, IMPO, "handlePlans") << "Received a plan. revenue = " << ans.revenue / (1e18) << "eth" << kkl();
                 ppBlock.unlock();
                 callback(ans);
             }

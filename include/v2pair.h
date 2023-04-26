@@ -20,28 +20,75 @@ struct V2Event{
 
 class V2Pair{
 public:
+    struct PairStatus{
+         // 在这个操作之前池子的状态。
+        double reserve[2];
+        IndexType timestamp;
+        PairStatus() { reserve[0] = -1; reserve[1] = -1; }
+    };
+    std::deque<std::pair<IndexType, PairStatus>> history; // (idxHash, status) 在执行第 idxHash 个 event 之前池子状态为 status
+
     double reserve[2] = {0};
     std::string token[2];
     std::mutex block;
+    std::string pairAddress;
     unsigned long long latestIdxHash;
-    V2Pair(const std::string & token0, const std::string & token1, const double & reserve0, const double & reserve1, const unsigned long long & idx) { // 用于创建 Pair.
+    V2Pair(const std::string & token0, const std::string & token1, const double & reserve0, const double & reserve1, const unsigned long long & idx, std::string addd) { // 用于创建 Pair.
         token[0] = token0;
         token[1] = token1;
         reserve[0] = reserve0;
         reserve[1] = reserve1;
         latestIdxHash = idx;
+        pairAddress = addd;
+    }
+    void rollbackTo(IndexType limit) { // 恰好执行完第 limit 个 event 的状态。
+        if(latestIdxHash <= limit) return ;
+        std::lock_guard<std::mutex> lb(block);
+        PairStatus lastStatus;
+        while(!history.empty()) {
+            if(history.back().first <= limit) {
+                break;
+            } else {
+                lastStatus = history.back().second;
+                history.pop_back();
+            }
+        }
+
+        if(lastStatus.reserve[0] != -1) {
+            reserve[0] = lastStatus.reserve[0];
+            reserve[1] = lastStatus.reserve[1];
+            latestIdxHash = lastStatus.timestamp;
+        } else { // 创建的 events 被撤回。 标记 Pair 为不可用。
+            Logger(std::cout, WARN, "rollbackto") << "Not found backup of " << pairAddress << "(v2 pair), treat as deleting pool." << kkl();
+            reserve[0] = -1;
+            reserve[1] = -1;
+            latestIdxHash = 0;
+        }
+
     }
     void processEvent(const V2Event & e){
-        block.lock();
-        assert(latestIdxHash <= e.idxHash);
+        std::lock_guard<std::mutex> lb(block);
+        if(latestIdxHash >= e.idxHash) {
+            Logger(std::cout, ERROR, "processEvent") << "detached early event (idx=" << e.idxHash << ", nowIdx=" << latestIdxHash << " ignored. "<< pairAddress << "(v2 pair)" << kkl();
+            assert(false);
+            return ;
+        }
+
+        while(   !history.empty()
+              && e.idxHash / LogIndexMask - history.front().first / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS )
+            history.pop_front();
+
+        PairStatus temp; temp.reserve[0] = reserve[0]; temp.reserve[1] = reserve[1]; temp.timestamp =  latestIdxHash;
+        history.push_back(std::make_pair(e.idxHash, temp));
+
         assert(e.type == SET);
+
         if(e.type == SET) {
 
             reserve[0] = e.reserve0;
             reserve[1] = e.reserve1;
         }
         latestIdxHash = e.idxHash;
-        block.unlock();
     }
     double query(bool zeroToOne, double amountIn) {
         if(zeroToOne ? amountIn + 10 > reserve[0] : amountIn + 10 > reserve[1])
