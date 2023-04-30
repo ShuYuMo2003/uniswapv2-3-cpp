@@ -16,10 +16,25 @@
 #include <unistd.h>
 
 const std::string WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
-std::set<std::string> blackList{
-    "0xd233D1f6FD11640081aBB8db125f722b5dc729dc",
-    "0xA4C9b58D1Ce7EA0d9b351185E0c333683EbDe00b"
-};
+
+
+
+std::set<std::string> whileList = ([](){
+    std::set<std::string> result;
+    char buffer[1024];
+    FILE * fptr = fopen("token-whitelist.txt", "r");
+    if(fptr == NULL)
+        Logger(std::cout, ERROR, "fetch whileList") << "Not Found token-whitelist.txt" << kkl();
+    assert(fptr != NULL);
+    int readCnt = 0;
+    while(fscanf(fptr, "%s%*s", buffer) != EOF) {
+        result.insert(buffer);
+        assert(buffer[0] == '0' && buffer[1] == 'x');
+        readCnt ++;
+    }
+    Logger(std::cout, INFO, "fetch whileList") << "Token WhiteList load successfully. tokenCnt = " << result.size() << " readCnt = " << readCnt << kkl();
+    return result;
+})();
 
 namespace graph{
 
@@ -202,7 +217,7 @@ void main(){
 
 class core_t{
 public:
-    const double MINREVENUE = 1e17;
+    const double MINREVENUE = 0.01e18;
     const uint MAX_CALL_TIME = 0.5e4;
 
     std::vector<double> d;
@@ -304,8 +319,9 @@ void evaluateTokens() {
             for(auto & V : U) available[V] = 1;
         }
     }
-    for(auto & garbage : blackList) {
-        available[token2idx[garbage]] = false;
+    for(int i = 0; i < static_cast<int>(available.size()); i++) {
+        if(whileList.find(idx2token[i]) == whileList.end())
+            available[i] = false;
     }
     int cnt = 0; for(int i = 0; i < static_cast<int>(available.size()); i++) cnt += available[i];
     Logger(std::cout, INFO, "evaluateTokens") << "re-evaluate Tokens done. avaliable tokens = " << cnt << kkl();

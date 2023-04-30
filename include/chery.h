@@ -209,11 +209,11 @@ void chery(){
             Logger(std::cout, INFO, "Chery") << SquareSmallChery[i] << kkl();
         }
     }
-    Logger(std::cout, ERROR, "And And And") << kkl();
-    Logger(std::cout, ERROR, "And And And") << "============================== and ==============================" << kkl();
-    Logger(std::cout, ERROR, "And And And") << kkl();
+    Logger(std::cout, INFO, "And And And") << kkl();
+    Logger(std::cout, INFO, "And And And") << "============================== and ==============================" << kkl();
+    Logger(std::cout, INFO, "And And And") << kkl();
     for(int i = 0; i < static_cast<int>(sizeof(ShuYuMo) / sizeof(std::string)); i++) {
-            Logger(std::cout, WARN, "ShuYuMo") << ShuYuMo[i] << kkl();
+            Logger(std::cout, INFO, "ShuYuMo") << ShuYuMo[i] << kkl();
         }
     return ;
 }
