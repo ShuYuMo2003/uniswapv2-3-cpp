@@ -179,55 +179,58 @@ int main(){
 
         IndexType nowIndex = (vr == 2 ? v2e.idxHash : v3e.idxHash);
 
-        if(nowIndex <= lastIdxHash) { // rollback.回溯到 恰好执行完 nowIndex 的状态
-            IndexType limit = nowIndex - 1;
+        // nowIndex == 0. treat as 强制状态更新。
+        if(nowIndex != 0u) {
 
-            Logger(std::cout, INFO, "main") << "rollback command detacted! now at " << lastIdxHash << " rollbacking to " << limit << kkl();
+            if(nowIndex <= lastIdxHash) { // rollback.回溯到 恰好执行完 nowIndex 的状态
+                IndexType limit = nowIndex - 1;
 
-            lastIdxHash = limit;
+                Logger(std::cout, INFO, "main") << "rollback command detacted! now at " << lastIdxHash << " rollbacking to " << limit << kkl();
 
-            while(!EventsLog.empty() and std::get<0>(EventsLog.back()) > limit) {
-                auto [logidx, type, address] = EventsLog.back();
-                // Logger(std::cout, WARN, "address") << address << kkl();
-                if(type == graph::UniswapV2) {
-                    v2Pair[address]->rollbackTo(limit);
-                    lazyUpdatev2Pair.insert(address);
-                } else {
-                    v3Pool[address]->rollbackTo(limit);
-                    lazyUpdatev3Pool.insert(address);
+                lastIdxHash = limit;
+
+                while(!EventsLog.empty() and std::get<0>(EventsLog.back()) > limit) {
+                    auto [logidx, type, address] = EventsLog.back();
+                    // Logger(std::cout, WARN, "address") << address << kkl();
+                    if(type == graph::UniswapV2) {
+                        v2Pair[address]->rollbackTo(limit);
+                        lazyUpdatev2Pair.insert(address);
+                    } else {
+                        v3Pool[address]->rollbackTo(limit);
+                        lazyUpdatev3Pool.insert(address);
+                    }
+                    EventsLog.pop_back();
                 }
-                EventsLog.pop_back();
+
+                rollbackToBesync = true;
+
+                // SyncWithDb(lastIdxHash / LogIndexMask);
             }
 
-            rollbackToBesync = true;
 
-            // SyncWithDb(lastIdxHash / LogIndexMask);
+            auto nowBlockNumber = nowIndex / LogIndexMask;
+            auto lastBlockNumber = lastIdxHash / LogIndexMask;
+            if((lastBlockNumber != nowBlockNumber && (rollbackToBesync || lastBlockNumber % 10 == 0))) {
+                if(rollbackToBesync)
+                    Logger(std::cout, WARN, "Force Sync") << "because of rollback, force sync with database." << kkl();
+                // 块数编号是 10 的倍数 且 和上次处理的块号不同
+                SyncWithDb(lastBlockNumber);
+                rollbackToBesync = false;
+            }
+            lastIdxHash = nowIndex;
+
+
+            while( !EventsLog.empty()
+                and  lastIdxHash / LogIndexMask - std::get<0>(EventsLog.front()) / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS)
+                EventsLog.pop_front(); // 修剪 EventsLog
+
+            EventsLog.push_back(vr == 2 ? std::make_tuple(lastIdxHash, graph::UniswapV2, v2e.address)
+                                        : std::make_tuple(lastIdxHash, graph::UniswapV3, v3e.address));
+
+            // Logger(std::cout, WARN, "debug") << (vr == 3 ? v3Pool[v3e.address]->latestIdxHash : v2Pair[v2e.address]->latestIdxHash) << kkl();
+
+            // Logger(std::cout, INFO, "debug") << "Processing events. " << (vr == 3 ? v3e.address : v2e.address) << " vr = " << vr << " have been updated. LastIdx = " << (vr == 3 ? v3e.idxHash : v2e.idxHash) << " type = " << (vr == 3 ? v3e.type : v2e.type) << kkl();
         }
-
-
-        auto nowBlockNumber = nowIndex / LogIndexMask;
-        auto lastBlockNumber = lastIdxHash / LogIndexMask;
-        if((lastBlockNumber != nowBlockNumber && (rollbackToBesync || lastBlockNumber % 2000 == 0))) {
-            if(rollbackToBesync)
-                Logger(std::cout, WARN, "Force Sync") << "because of rollback, force sync with database." << kkl();
-            // 块数编号是 10 的倍数 且 和上次处理的块号不同
-            SyncWithDb(lastBlockNumber); // for test only.
-            rollbackToBesync = false;
-        }
-        lastIdxHash = nowIndex;
-
-
-        while( !EventsLog.empty()
-            and  lastIdxHash / LogIndexMask - std::get<0>(EventsLog.front()) / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS)
-            EventsLog.pop_front(); // 修剪 EventsLog
-
-        EventsLog.push_back(vr == 2 ? std::make_tuple(lastIdxHash, graph::UniswapV2, v2e.address)
-                                    : std::make_tuple(lastIdxHash, graph::UniswapV3, v3e.address));
-
-        // Logger(std::cout, WARN, "debug") << (vr == 3 ? v3Pool[v3e.address]->latestIdxHash : v2Pair[v2e.address]->latestIdxHash) << kkl();
-
-        // Logger(std::cout, INFO, "debug") << "Processing events. " << (vr == 3 ? v3e.address : v2e.address) << " vr = " << vr << " have been updated. LastIdx = " << (vr == 3 ? v3e.idxHash : v2e.idxHash) << " type = " << (vr == 3 ? v3e.type : v2e.type) << kkl();
-
         if(vr == 3) { // V3 Pool
             lazyUpdatev3Pool.insert(v3e.address);
             if(v3e.type == v3::CRET){
@@ -266,7 +269,6 @@ int main(){
                 assert(v2Pair.count(v2e.address));
                 v2Pair[v2e.address]->processEvent(v2e);
             }
-
 
         }
 

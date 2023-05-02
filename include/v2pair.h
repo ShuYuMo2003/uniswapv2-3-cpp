@@ -60,6 +60,7 @@ public:
             latestIdxHash = lastStatus.timestamp;
         } else { // 创建的 events 被撤回。 标记 Pair 为不可用。
             Logger(std::cout, WARN, "rollbackto") << "Not found backup of " << pairAddress << "(v2 pair), treat as deleting pool." << kkl();
+            assert(false); // 目前不监听池子创建指令。
             reserve[0] = -1;
             reserve[1] = -1;
             latestIdxHash = 0;
@@ -68,27 +69,34 @@ public:
     }
     void processEvent(const V2Event & e){
         std::lock_guard<std::mutex> lb(block);
-        if(latestIdxHash >= e.idxHash) {
-            Logger(std::cout, ERROR, "processEvent") << "detached early event (idx=" << e.idxHash << ", nowIdx=" << latestIdxHash << " ignored. "<< pairAddress << "(v2 pair)" << kkl();
-            assert(false);
-            return ;
+        if(e.idxHash != 0u) { // 表示强制更改，不回滚，不检查。
+            if(latestIdxHash >= e.idxHash) {
+                Logger(std::cout, ERROR, "processEvent") << "detached early event (idx=" << e.idxHash << ", nowIdx=" << latestIdxHash << " ignored. "<< pairAddress << "(v2 pair)" << kkl();
+                // assert(false); //TOOD: recover
+                return ;
+            }
+
+            while(   !history.empty()
+                && e.idxHash / LogIndexMask - history.front().first / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS )
+                history.pop_front();
+
+            PairStatus temp; temp.reserve[0] = reserve[0]; temp.reserve[1] = reserve[1]; temp.timestamp =  latestIdxHash;
+            history.push_back(std::make_pair(e.idxHash, temp));
+
+
+            latestIdxHash = e.idxHash;
         }
 
-        while(   !history.empty()
-              && e.idxHash / LogIndexMask - history.front().first / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS )
-            history.pop_front();
-
-        PairStatus temp; temp.reserve[0] = reserve[0]; temp.reserve[1] = reserve[1]; temp.timestamp =  latestIdxHash;
-        history.push_back(std::make_pair(e.idxHash, temp));
+        if(e.idxHash == 0u)
+            Logger(std::cout, WARN, "v2 pair") << "Force v2 pair status update on " << pairAddress << kkl();
 
         assert(e.type == SET);
 
         if(e.type == SET) {
-
             reserve[0] = e.reserve0;
             reserve[1] = e.reserve1;
         }
-        latestIdxHash = e.idxHash;
+
     }
     double query(bool zeroToOne, double amountIn) {
         if(zeroToOne ? amountIn + 10 > reserve[0] : amountIn + 10 > reserve[1])

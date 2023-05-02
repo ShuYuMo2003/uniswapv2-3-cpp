@@ -285,6 +285,7 @@ struct V3Pool{
             free(lastStatus.buffer);
         } else { // 认为创建的 events 被撤回。 标记 Pool 为不可用。
             Logger(std::cout, WARN, "rollbackto") << "Not found backup of " << poolAddress << "(v3 pool), treat as deleting pool." << kkl();
+            assert(false); // 目前不监听池子创建指令。
             initialized = false;
             latestIdxHash = 0;
         }
@@ -292,25 +293,26 @@ struct V3Pool{
 
     void processEvent(V3Event & e){
         std::lock_guard<std::mutex> lb(block);
+        if(e.idxHash != 0u) {
+            if(latestIdxHash >= e.idxHash) {
+                Logger(std::cout, ERROR, "processEvent") << "detached early event (idx=" << e.idxHash << ", nowIdx=" << latestIdxHash << " ignored. "<< poolAddress << "(v3 pool)" << kkl();
+                //TOOD: recover
+                // assert(false);
+                return ;
+            }
 
-        if(latestIdxHash >= e.idxHash) {
-            Logger(std::cout, WARN, "processEvent") << "detached early event (idx=" << e.idxHash << ", nowIdx=" << latestIdxHash << " ignored. "<< poolAddress << "(v3 pool)" << kkl();
-            assert(false);
-            return ;
+            while(   !history.empty()
+                && e.idxHash / LogIndexMask - history.front().first / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS )
+                history.pop_front();
+
+
+            PoolStatus nowDataStatus;
+            nowDataStatus.initialized = initialized;
+            nowDataStatus.timestamp   = latestIdxHash;
+            nowDataStatus.buffer      = malloc(IntPoolSize);
+            CopyPool(IntPool, (Pool<false> * )nowDataStatus.buffer);
+            history.push_back(std::make_pair(e.idxHash, nowDataStatus));
         }
-
-        while(   !history.empty()
-              && e.idxHash / LogIndexMask - history.front().first / LogIndexMask > SUPPORT_ROLLBACK_BLOCKS )
-            history.pop_front();
-
-
-        PoolStatus nowDataStatus;
-        nowDataStatus.initialized = initialized;
-        nowDataStatus.timestamp   = latestIdxHash;
-        nowDataStatus.buffer      = malloc(IntPoolSize);
-        CopyPool(IntPool, (Pool<false> * )nowDataStatus.buffer);
-        history.push_back(std::make_pair(e.idxHash, nowDataStatus));
-
 
         // std::cerr << "Processing" << std::endl;
         int type = e.type;
@@ -428,7 +430,7 @@ struct V3Pool{
                         && IntPool->slot0.sqrtPriceX96 == e.sqrtPrice);
             }
             if(not success) {
-                std::cout << e.address << " " << e.amount << std::endl;
+                std::cout << e.address << " " << e.amount << " " << latestIdxHash << " " << e.idxHash << std::endl;
                 assert(false);
             }
         } else if(type == MINT) {
